@@ -1,0 +1,74 @@
+Onde elettromagnetiche e mezzi trasmissivi
+Lunedì 16 settembre 2019
+prof. Francesco Morichetti
+francesco.morichetti@polimi.it
+Sta al DEIB, edificio 20 in via Ponzio 3zo piano oppure edificio 30 in via Colombo 81 (80%).
+Orario di ricevimento ufficiale: mercoledì 14:30 - 17:30. Avvisare prima. Tel. 0223998954
+Fa fotonica (ex ottica) elettronica.
+Canale di comunicazione è BEEP.
+Abbiamo lezione il lunedì e il mercoledì
+Il lunedì si inizia alle 10:30, una sola pausa; mercoledì tutto una tirata
+
+Si parla di informazione. Come trattarla
+Codifica, protezione, instradazione, _trasmissione_, ricevere, decrittare, decodificare.
+Noi ci occupiamo di trasmetterlo da un punto all'altro.
+Mezzi trasmissivi (aria, fibra ottica, rame, ...).
+L'informazione può essere portata su una scheda elettronica (pochi mm), un datacenter (centinaia di metri), scala globale (migliaia di kilometri), scala inter-planetaria (milioni di km).
+Scheda elettronica ha le piste, fibra ottica e rame per le connessioni casalinghe, fibre ottiche per le lunghe distanze, paraboloni con onde radio per Saturno.
+(Il 70% del costo dei datacenter è dovuto al loro raffreddamento)
+Sono tutti oggetti che trasmettono onde elettromagnetiche. È l'oggetto fisico che veicola l'informazione. 
+Seono sempre onde EM con tensioni e correnti su rame, campi elettrici e magnetici nello spazio libero, impulsi luminosi sulla F.O.
+Onde EM hanno frequenza (Hz) e lunghezza d'onda (distanza tra due creste d'onda). Sono inversamente proporzionali.
+
+Obiettivi del corso:
+	presentare aspetti fondamentali
+	fornire strumenti per studio propagazione onde EM
+	limiti e possibilità dei mezzi di trasmissione
+	ambito applicativo odierno
+
+Prerequisiti:
+	-trigonometria
+	-calcolo differenziale e integrale
+	-calcolo vettoriale
+	-numeri complessi scritti come modulo fase in forma esponenziale !!!
+	-nozioni di elettrostatica e magnetostatica
+	-nozioni di circuiti elettrici (tensione, corrente, impedenza).
+
+a+ib = A*e^(j*fi).
+	A = ampiezza
+	fi = fase
+
+4 argomenti del corso:
+	(Introduzione)
+	Linee di trasmissione (base importante per il resto !!)
+	Propagazione onde EM 
+	Trasmissione nello spazio libero
+	Fibre ottiche
+60% teoria, 40% esercitazioni
+
+Esame scritto, dura 2:30 h.
+Orale obbligatorio se il voto è > 29 oppure se il voto è compreso tra il 15 e il 19.
+Orale facoltativo a discrezione del docente o su richiesta dello studente
+No prova in itinere.
+2 appelli (da confermare): 13/01 e 17/02 .
+Durante la prova scritta è consentito portare materiale da consultare in formato cartaceo (libri, dispende, appunti) e calcolatrice.
+NO tablet, NO smartphone.
+Se uno fa tutto giusto prende 38.
+Partire dall'esercizio che volete.
+
+Materiale didattico:
+	-libro + eserciziario del corso
+Il libro è mezzi di trasmissione per l'informazione (Morichetti, Melloni).
+Eserciziario è stato arricchito, adesso ha 260 pagine. 
+Vanno benissimo anche le versioni vecchie.
+
+Equazioni di Maxwell. Non la usiamo
+(Se uno ha il prof. Riva).
+Se uno va poi a fare telecomunicazioni trova le eq. di Maxwell e l'elettromagnetismo.
+
+Mezzi trasmissivi "competition" (2nda ed.)
+Ogni weekend arriva un quiz.
+Su BEEP cartella quiz and fun, partecipazione libera mandando una mail al prof max 30 parole con risposta e breve commento. Le soluzioni lunedì a lezione.
+Non si rischia l'anno. Non si vincono punti all'esame.
+
+
