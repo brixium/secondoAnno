@@ -1,0 +1,155 @@
+Architettura dei calcolatori e sistemi operativi 
+Martedì 17 settembre 2019
+Prof. Donatella Sciuto (vice rettore) + Luca Stornaiuolo
+RIceve su appuntamento
+Prova in itinere ma funziona un po'diversamente
+Prima parte del corso: architettura dei calcolatori
+	Testo: David A. Patterson, John L.Hennessy; Struttura e progetto dei calcolatori edito Zanichelli; ->architettura dei calcolatori
+	Testo 2ndo sem: dispense online su BeeP.  ->sistemi operativi e programmazione concorrente (Linux)
+TDE disponibili su BeeP. 
+Lezione misto tra slide e lavagna
+
+Modalità d'esame: 2 prove separate anche agli appelli: 1 sull'architettura dei calcolatori, l'altra sui sistemi operativi.
+Ogni prova assegna 16 punti, la si passa con almeno 7 punti, 18 su tutte e due.
+È possibile sostenere le prove in appelli differenti.
+Sconsigliato fare le prove insieme.
+All'esame ti danno tutto quello che dovresti impararti a memoria, tipo Bolchini.
+
+Partiamo col singolo processore
+Programmazione multithread, non vedremo problemi di design: sicurezza, surriscaldamento, efficienza energetica.
+Architettura del calcolatore è coordinamento di molti livelli di astrazione.
+
+Linguaggio di alto livello > Instruction Set Architecture > codice binario
+ISA è relativo ad una architettura di CPU. Ed è quella che divide il sw dall'hw.
+Il SO nasconde le funzioni hardware al software fornendo interfacce.
+Firmware è la più vicina all'hardware
+Transistor > circuiti > porte logiche >|| microarchitettura > ISA (architettura) > Sistema runtime(VM, OS, FS) ||> programma/linguaggio.
+SO gestisce: processi, memoria e File System.
+
+Livelli di astrazione:
+C > assembly (MIPS) > linguaggio macchina (MIPS) > descrizione architettura hw a blocchi > descrizione circuito logico (diagrammi schematici dei circuiti).
+
+Temi:
+1) ISA (cpaitolo 2 fino a 2.14 e appendice A escluse le parti in Java)
+	-linguaggio assembly (MIPS)
+	-tradurre da C in assembly
+	-tradurre dall'assembly al codice macchina
+2)componenti hw:
+	-porte logiche
+	-circuiti combinatori
+	-elemeti di memoria
+3)il processore
+4)la gerarchia di memoria (cap.5 fino a 5.4)
+5)il bus: introduzione
+
+il capitolo 5.7 verrà trattato nella seconda parte del corso con i sistemi operativi.
+
+Legge di Moore: ogni 2 anni / 18 mesi, ci sono 2X transistor. Oggi il trend si è rallentato un po'per problemi di architettura.
+
+Principi fondamentali:
+	il programma viene mandato in esecuzione, lo si manda in memoria e si invia la prima istruzione al processore
+	dopodiché esecuzione sequenziale
+Architettura di Von Neumann
+	|-CPU con ALU, Registri+PC, controllo
+	|-Memoria
+	|-Interfaccia di I/0 <-->memoria di massa
+	|-I/0 <--> tastiera/video
+	^ bus di dati, indirizzi e controllo (protocollo).
+
+Struttura del data path:
+Programma in c: 
+int a, b, c;
+c = a + b;
+^ 1 istruzione in c che diventano 4 istruzione assmbly:
+	.carica a da memoria a registro
+	.carica b da mem a reg
+	.esegui somma dei 2 registri
+	.spostamento dell'output ALU da registro a memoria.
+in altre parole: Caricare c, a e b nei registri in memoria, poi si portano nei registri di ingresso dell'ALU e si portano ai bus di ingresso all'ALU.
+
+Categorie di istruzioni:
+	Registro-memoria
+		-trasferimento dati tra registri CPU e la memoria centrale
+		-l'unità di informazione trasferita è la parola (word)
+	Registro-registro
+		-utilizzano il contenuto dei registri per svolgere operazioni (tramite ALU) e memorizzano il risultato in un ciclo di data path.
+		-ciclo di data path
+
+Esecuzione delle istruzioni
+	Ciclo Fetch-Decode-Execute
+			1)prendi l'istruzione corrente dalla memoria e la metti nel registro istruzioni (IR)
+			2)incrementa il PC in modo da contenere l'indirizzo dell'istruzione successiva
+			3)determina il tipo dell'istruzione corrente (decodifica)
+			4)se l'istruzione usa una parola in memoria, determina dove si trova
+			5)carica la parola in un registro CPU se necessario
+			6)Esegui l'istruzione
+			7)torna al punto 1 e esegue l'istruzione successiva
+
+L'istruzione è divisa in campi:
+	campo codice operativo indica il tipo di operazione
+	gli altri campi indicano gli indirizzi degli operandi oppure gli operandi stessi. Gli indirizzi possono riferirsi ad indirizzi di memoria o reg della CPU.
+modalità di indirizzamento
+
+Noi usiamo MIPS a 32 bit 
+2 tipi di processori: 
+	quelli che vogliono entrambi i dati su cui operare provenienti dalla memoria debbano essere caricati nei registri -> architetture LOAD STORE (quelle più moderne)
+
+Il normale flusso di esecuzione di un programma può essere interrotto da un segnale di INTERRUPT per richiesta di intervento che un dispositivo I/O manda al processore.
+Con esso i dispositivi di I/O possono segnalare cose al processore.
+
+Un po'di storia: RISC e CISC
+I primi computer avevano delle ISA semplici, via via rese sempre più complesse.
+Negli anni '70 andavano molto i processori microprogrammati CISC, realizzati con l'idea di fornire istruzioni molto complesse che rispecchiassero i costrutti dei liguaggi ad alto livello. Microprogramma per realizzare istruzioni complesse. Falsa credenza che avessero delle implementazioni HW più efficienti.
+Negli anni '80 c'è stato l'avvento dei RISC, di cui il MIPS fa parte. Istruzioni semplici, tempi di esecuzioni molto brevi.
+Vantaggi del RISC: spazio risparmiato per implementazione istruzioni extra viene impiegato per memorie cache per velocizzare istruzioni; uniformità delle istruzioni per velocizzarne la decodifica; uniformità e prevedibilità dei tempi di esecuzione delle istruzioni permette di eseguire più operazioni in parallelo.
+Intel creò un nucleo RISC ma aggiunge in hardware un assembler che traduce dall'assembly CISC all'allora nuovo RISC.
+
+Noi utilizziamo il MIPS (R2000/R3000 RISC)
+Usando l'interprete MARS o SPIM possiamo farlo.
+
+Registro da 32 bit, possiamo indirizzare fino a 2^32 B di memoria (4GB).
+La memoria è indirizzabile a byte con parole da 4 byte.
+Gli ultimi 2 bit alla fine della parola servono a poco.
+
+Bus dati
+Bus indirizzi
+Bus di controllo
+
+Esempio: operazione di lettura dalla memoria
+	il bus indirizzi viene riempito con l'indirizzo della parola desiderata e inviato alla memoria
+	quando la memoria ha finito di leggere la parola richiesta, il dato viene trasferito al bus dati e la CPU può prelevarlo
+	nella struttura a bus singolo tutte le unità del calcolatore sono connesse al bus.
+
+Ripasso numeri binari
+
+
+CAPITOLO 2
+
+Introduzione Assembler
+
+Per il C la compilazione avviene in 3 fasi: compilazione (che crea file oggetto .obj), linking (con anche programmi di libreria), caricamento ed esecuzione.
+Il linguaggio assembler è più primitivo: no controllo di flusso, solo GOTO. Linguaggio molto restrittivo (es. istruzioni aritmetiche hanno numero piccolo e fisso di operandi). Due processori con lo stesso linguaggio macchina hanno la stessa architettura anche con implementazioni hw diverse.
+Incrementare il Program Counter lo fa avanzare di 4 (essendo a 32 bit).
+I primi 6 bit indicano l'operazione da eseguire. I primi 6 bit a 0 indicano un'operazione aritmetica, descritta dagli ultimi 6 bit.
+Utilizzando un traduttore inverso o disassemblatore posso tradurre dal linguaggio macchina in assembly.
+I comandi con dei punti danno delle direttive all'assembler: 
+	.text e .data indicano che le linee successive contengono istruzioni o dati
+	.align n: indica l'allinamento su 2^n
+	.global main: l'etichetta main è globale, ossia visibile dal codice in altri file
+	.asciiz: area di memoria che memorizza una stringa terminata da 0
+sw è store word
+sd è store double
+lw è load word
+mul moltiplicazione
+ble branch less or equal (salta se minore o uguale (sottointeso a 0))
+
+Categoria di istruzioni:
+	aritmetico logiche
+	trasferimento memoria
+	di controllo (flusso exec)
+Esse hanno una codifica, un formato (nel MIPS ce ne sono 3, ciascuna per ciascuna categoria).
+Le istruzioni del MIPS hanno solo 2 operandi e 1 risultato.
+Sia operandi che risultato devono essere contenuti nel registro.
+Non confondere variabili e registri. Variabili infinite, 32 registri codificati in bit, da 0 a 31. Sono numerati col $ davanti ($0, $1, ..., $31). Alcuni hanno dei nomi simbolici. $0 ha dentro 0, $1 è riservato (chiamato anche $at). I valori di ritorno sono salvati in $2 e $3, poi c'è il resto.
+
+
