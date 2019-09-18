@@ -1,5 +1,6 @@
 Architettura dei calcolatori e sistemi operativi 
 Martedì 17 settembre 2019
+
 Prof. Donatella Sciuto (vice rettore) + Luca Stornaiuolo
 RIceve su appuntamento
 Prova in itinere ma funziona un po'diversamente
@@ -152,4 +153,125 @@ Le istruzioni del MIPS hanno solo 2 operandi e 1 risultato.
 Sia operandi che risultato devono essere contenuti nel registro.
 Non confondere variabili e registri. Variabili infinite, 32 registri codificati in bit, da 0 a 31. Sono numerati col $ davanti ($0, $1, ..., $31). Alcuni hanno dei nomi simbolici. $0 ha dentro 0, $1 è riservato (chiamato anche $at). I valori di ritorno sono salvati in $2 e $3, poi c'è il resto.
 
+
+Mercoledì 18 settembre 2019
+
+26enne Luca Stornaiuolo luca.stornaiuolo@polimi.it
+Iscritto nel 2012, laurea triennale nel 2015. Si è iscritto ad una laurea magistrale ed era spaventato dall'ostacolo dell'inglese. Nel 2016 entra nel NECST (laboratorio basato sull'hardware). Hackaton. may 2017 NGC @San Francisco. 
+Forze oscure: prof.Santambrogio, collaborazione IBM<->Polimi a Cambridge, Massachussets. Laurea magistrale a ottobre 2017.
+Da nov.2017 dottorato: dura 3 anni e fai ricerca sull'ing.informatica.
+
+Assembler MIPS
+Libro di testo: Patterson Hennessy capitolo 2, usiamo MARS
+In MIPS ci sono operandi e registri.
+variabili =/= registri
+I 3 tipi di istruzioni MIPS:
+	(R)egister: operazioni aritmetico-logiche. Diverse istruzioni.
+		istruzione destinazione, src1, src2
+		add: serve per sommare il contenuto di due registri
+			es: add rd, rs, rt //andrà a sommare rs e rt e metterà il risultato in rd.
+		sub: sottrae
+	(I)mmediate
+
+	(J)ump
+
+Esempio R: a = (b+c) - (d-f) + g.
+$s1 è b, $s2 è c
+
+trasferimenti con la memoria: istruzioni lw e sw
+
+Load Word (LW)
+lw carica il contenuto dalla memoria
+es. lw $s1, 48($s2)
+                ^base register che contiene il valore del base address
+			 ^offset
+		^dove va a salvare
+
+SW è analogo a lw ma è store
+es. sw $s1, 96($s2)
+				^a questa locazione + offset viene assegnato il valore dentro s1
+
+li e la, load immediate e load address
+li $v0, 4 (carica la costante 4 in v0)
+la $a0, num1 (carica l'indirizzo num1 in a0)
+
+Differenza tra la e lw
+
+Big endian e little endian. MIPS è in grado di operare con entrambi i metodi
+Big endian è avere i byte enumerati da sinistra a destra, little endian è da destra a sinistra.
+
+varianti dell'addizione: addi(immediata), addu (senza segno) e addiu (immediata e senza segno).
+
+Esistono registri referenziabili e non referenziabili 
+Moltiplicazione: mult rs rt, senza segno: multu rs rt
+il registro del risultato della moltiplicazione è implicito. È messo in due registri speciali: hi e lo.
+Il risultato della moltiplicazione si preleva dal registro hi e da lo tramite due operazioni: mfhi e mflo
+
+Divisione: div e divu. Simile a prima
+
+Istruzioni logiche
+	and			and rd, rs1, rs2
+	or			or rd, rs1, rs2
+	nor			nor rd, rs1, rs2
+	lshift		sll rd, rs, #bit
+	rshift		srl rd, rs, #bit
+esistono anche andi e ori ovvero and/or bit a bit tra un operando e una costante
+
+Se devo fare una moltiplicazione per un multiplo di due uso lo shift a sinistra in un solo ciclo di clock anziché 4 o 6.
+I bit inseriti durante lo shift sono settati a 0.
+
+Array
+L'indirizzo dell'iesimo elemento di un array si troverà nell'elemento br + (4*i) //4 sono il numero di byte in una word
+
+(J)ump: istruzioni di salto.
+Normalmente l'esecuzione è sequenziale.
+Il Program Counter (PC) indica dove si trova la prossima istruzione da eseguire, quindi normalmente PC=PC+4.
+
+Si può modificare il flusso di istruzioni con:
+	-salto condizionato (branch) -> al verificarsi di una condizione viene eseguito. 
+		Se la reg1==reg2: beq reg1, reg2, ind_salto
+	-salto incondizionato (jump) -> viene sempre eseguito
+		jump: j addr
+		jump and link: jal
+		jump register: jr reg
+
+Etichette (labels)
+vengono usate per essere ritrovate facilmente, l'assembler le sostitiusce in fase di compilazione
+
+Esempio:
+	if(i==j)
+		f=g+h;
+	else
+		f=g-h;
+	
+	tradotto in assembly.
+
+		bne	$s3, $s4, Else #Else è un'etichetta, non è realmente scritta in memoria
+		add	$s0, $s1, $s2
+		j	End_if
+Else:	sub	$s0, $s1, $s2
+End_if:	...
+
+istruzione slt e sltu
+
+Altro esempio:
+if(i<j) ...
+
+
+Vai con la seconda slide PDF
+Formato istruzioni di tipo R: istruzioni aritmetico-logiche tra registri
+op (opcode): tipo di istruzione,	6 bit (per le R sono tutti a 0)
+rs: reg contenente il primo operando sorgente, 5b
+rt: " " " secondo op. sorgente, 5b
+rd: " " il risultato (destinazione),5b
+shamt: shift amount, 5b
+funct: variante dell'operazione, 6b (somma, sottrazione, ...)
+
+Istruzioni di tipo I (lw, sw, addi, slti)
+op 6 bit
+rs 5b = reg base
+rt 5b = reg dest.
+indirizzo: 16 bit = spiazzamento, offset
+
+istruzioni di salto condizionato (tipo i)
 
