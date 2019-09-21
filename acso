@@ -275,3 +275,86 @@ indirizzo: 16 bit = spiazzamento, offset
 
 istruzioni di salto condizionato (tipo i)
 
+Giovedì 19 settembre 2019 (Stornaiuolo)
+Continiuamo le slide di ieri.
+Formato istruzioni di tipo J.
+
+Per saltare ad indirizzi > 2^28 c'è un comando apposta
+pseudoistruzione la (load address)
+Le operazioni aritmetico-logiche si trovano nei registri
+Registri sono vicini al processore, la memoria invece è distante e occorre che venga chiamata.
+
+
+Terza slide
+
+Passare da C (alto livello) ad Assembly (basso livello)
+
+4 fasi per tradurre:
+- analisi sintattica e trattamento errori (statico)
+- generazione del codice macchina in forma simbolica
+- ottimizzazione del codice macchina (facoltativo)
+- assemblaggio (traduzione in codifica numerica) e linking 
+
+Occhio alle pseudoistruzioni: istruzioni più astratte e intuitive ma devono essere tradotte per l'ISA, non sempre automatico.
+
+Chiamate di sistema: syscall
+	mettere il codice di chiamata nel reg $v0, argomenti da $a0 ad $a3
+	chiamare la syscall
+3 segmenti essenziali del processo:
+	codice
+	dati
+	pila (stack (dall'alto al basso) e heap (dal basso verso l'alto))
+Dichiarare i segmenti tipici
+.global main = entry point
+.data, .text
+
+Esempio:
+codice C: 	int a, b, c;
+			a=b+c;
+Assembly + mappatura:
+	a: .word # la sua memoria sarà per le word 100, 101, 102, 103
+	#.word è una macro
+	lw $t0, 104($0) 
+
+Array:
+A: .space 80 # occupa 80 byte
+In assembler per salvare le variabili ti devi salvare dello spazion in memoria
+Variabile globale ha spazio statico ed è scritta in maiuscolo per convenzione, sono allocate in MIPS a partire dall'indirizzo 0x1000000
+macro silde 28
+Ci sono tutti i tipi, array, puntatori, struct.
+Dichiarazione di funzione
+Consideriamo fino a 4 parametri perché poi bisogna inventarsi dei trucchi
+Il valore in uscita va restituito in v0
+area di attivazione della funzione
+I sottoprogrammi
+-> creato record di attivaione sullo stack quando viene chiamato, deallocato alla sua fine
+jump and link
+side effect da gestire utilizzando la pila per salvare le informazioni
+Problema: i registri sono condivisi sia dalla funzione chiamante che dalla chiamata (sovrascrittura). Per evitarlo, usare pila.
+la pila serve per creare spazio per variabili locali della funzione
+lo stack è una pila LIFO (last in, first out), indirizzata dai più grandi ai più piccoli.
+Operazioni più utilizzate sono la push e la pop. Necessario avere puntatore in cima allo stack
+Studiare la slide 47 della slide "gestione dello stack MIPS"
+Implementazione della push e pop in assembly
+PUSH: puntatore che punta alla cella successiva vuota, quindi per AUMENTARE la pila bisogna TOGLIERE indirizzi dallo stack pointer.
+alla fine deallocare spazio nello stack (es. addi $sp, $sp, 24) =>aumentare lo stack pointer per deallocare dalla pila
+Stack frame: area di attivazione.
+Frame pointer è il punto di inizio della funzione. È un modo per deallocare in un colpo solo tutto quello che era usato dalla funzione.
+
+Prologo del chiamante: salvo quello che mi serve.
+Prologo del chiamato: salvo le mie info
+Epilogo del chiamato: dealloco
+Epilogo del chiamamnte: pulisco
+
+Il chaiamnte si occupa di salvarsi dei registri temporanei, gli argomenti inviati alla funzione, i registri v0 e v1 (tutto ciò solo se necessario).
+il chiamato salva i registri s0-s7 che sono quelli permanenti, per poi fare le operazioni che vuole; infine le rimette a posto una volta terminata l'esecuzione.
+Quando la funzione chiamante non deve salvare nulla?
+	Se al chiamante nessuno dei valori che normalmente si salva servono più, non li salva.
+Quando la funzione chiamata non deve salvare nulla?
+	Se il chiamato non deve sporcare i registri s0-s7
+Ordine di salvataggio dei registri sullo stack (area di attivazione, slide 64)
+precisazioni sul FP frame pointer
+Procedura foglia è quella che non chiama nessun altro
+Traduzione del fattoriale da C in assembly
+Le funzioni non foglia si salvano sullo stack il ra return address
+
