@@ -358,3 +358,25 @@ Procedura foglia è quella che non chiama nessun altro
 Traduzione del fattoriale da C in assembly
 Le funzioni non foglia si salvano sullo stack il ra return address
 
+
+Martedì 24 settembre 2019
+Esercizio di traduzione da C in assembler
+Programma C che trova valore max in un array di valori
+
+Trasformare la load address
+la $t0, VETT
+in una load word
+lw, reg_dest, spiazzamento(reg_base)
+lui
+
+lui $t0, %hi(VETT) #la parte maggiore di vett (i primi 16 bit su 32 più significativi) è caricata (carico i 16 bit + significativi)
+ori $t0, %lo(VETT) #faccio la or immediata tra $t0 e la parte bassa di VETT (che è a tutti 0), per rimette insieme i due pezzi
+#in spiccioli, la istr. "la" si divide in lui e ori
+altra traduzione di pseudoistruzione se ho spazio per 16 bit con istruzioni da 32
+lw $t0, VETT
+#spiazzamento, global pointer
+lw $t0, %gp_al(VETT)($gp)
+
+Adesso le funzioni: vedi ese3.asm
+
+
