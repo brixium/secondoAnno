@@ -380,3 +380,116 @@ lw $t0, %gp_al(VETT)($gp)
 Adesso le funzioni: vedi ese3.asm
 
 
+Mercoledì 25 settembre 2019
+
+Assemblatore e linker
+Traduzione programma da C a eseguibile:
+1)Programma C
+2)Programma assembler
+3)Traduzione pseudoistruzioni in assembler
+4)Traduzione riga per riga delle istruzioni in codifica binaria inserendo nella tabella dei simboli "etichette" di cui è necessario ricavare un indirizzo quando definite all'interno di un modulo
+5) File oggetto: modulo in linguaggio macchina + funzioni libreria
+6) Eseguibile: programma in linguaggio macchina -> memoria
+Tabella dei simboli (utilizzata per i moduli).
+Dove vengono salvati in memoria i moduli? Quando assemblo non lo so
+Si assume che i moduli partano dall'indirizzo 0 della memoria
+Il file oggetto è composto da:
+	header(con dimensione in byte del file e la posizione dei vari segmenti)
+	codice tradotto
+	parte DATI statici
+	informazioni di rilocazione (identificano istruzioni e dati che dipendono da indirizzi _assoluti_ durante l'esecuzione)
+	informazioni per debug
+
+La parte cruciale è inserire indirizzi alle etichette.
+Può essere che una etichetta venga usata prima di essere definita.
+Per cui il compilatore legge il file alla ricerca di etichette e le inserisce nella tabella dei simboli.
+
+_Tabella dei simboli_ contiene:
+	etichette associate alle direttive dell'assembly (.eqv) <symbol, value>
+	ettichette che definiscono variabili nel segmento dati <symbol, relative address>
+	e. che definiscono istruzioni di salto <symbol, address>
+Indirizzi rilocabili perché calcolati rispetto al segmento di partenza (testo, dato)
+
+_Tabella di rilocazione del modulo_
+Contiene le informazioni sulle istruzioni tradotte in modo incompleto, c'est a dire le informazioni in cui il riferimento simbolico è una variabile del segmento dati, quindi convenzionalmente, l'assemblatore traduce le variabili scalari con 0($gp) (global pointer, che punta ad un'area del segmento dati).
+Per i vettori la traduzione avviene tramite l'utilizzo della load address + or immediate (lui+ori), con immediati convenzionali a 0.
+Le istruzioni di salto di tipo J, il simbolo è posto a 0 per convenzione.
+La tabella è formata da entry di questo formato:
+<indirizzo dell'istruzione, codice operativo della funzione, simbolo non risolto>
+
+Esempio: sorgente procedura B:
+
+.text
+B:	bne $a0, $0, E
+	sw $a0, Y
+E:	la $t0, W
+
+.data
+Y:	.word 0
+
+i riferimenti a W e Y sono nella tabella simboli
+(VS_REL -IADDR_REL +4)/4 = istruzione di salto
+Ho capito poco di questo esempio
+La tabella di rilocazione contiene le informazioni con riferimenti al segmento dati e istruzioni con riferimenti assoluti
+Questa breve parte è sull'appendice A del libro, caricata su beep
+Linker: si occupa di mettere insieme i moduli, gestendo la memoria. Alla fine produce un file eseguibile con la memoria dei moduli ordinata. Assume quindi che il primo sta all'indirizzo 0, e poi gli altri a seguire in maniera sequenziale per codice e dati. A questo punto corregge le tabelle e traduce indirizzi.
+
+Memoria virtuale
+Se il programma è piccolo viene caricato tutto, se è grande viene caricato a pezzi.
+Creo un modulo di memoria come riferimento per tutti.
+Organizzazione della memoria:
+	la prima parte è riservata dal SO
+	quella dove sarà caricato il codice 0x0040 0000
+	segmento dati statici: 0x1000 0000
+	segmento dati (memoria RAM malloc)
+	segmento stack. indirizzo max utilizzabile è 0x7FFF F(<-forse questa è una E)FFC
+	$sp è un indirizzo preciso per prelevare dati statici
+
+Il segmento dati statici non è rappresentabile su 16 bit.
+Come faccio a rappresentare l'indirizzo 1001 0020?
+Lo faccio a pezzi: il primo lo carico con la lui (load upper immediate) (0x1001) e il secondo con la lw $1 0x0020($s0)
+ora per caricare in s1 il contenuto della cella al nostro indirizzo basta sommare i due pezzi con la ori
+Rilocazione del modulo (solo per indirizzi relativi)
+
+La memoria virtuale è quello che potenzialmente posso indirizzare (come memoria) per il programma
+
+1) determinare la posizione in memoria dei moduli a partire dall'indirizzo 0 e poi in maniera sequenziale
+2) creazione della tabella dei simboli globale costituita dall'unione delle tabelle di simboli di tutti i moduli che devono essere collegati, modificari (rilocati) in base all'indirizzo del modulo a cui appartengono
+	Segmento dati =/= 
+3) Correzione dei riferimenti nei moduli (*)
+	ISTR
+	IADDR
+	VS: valore di S nella tabella globale
+	GP: global pointer
+
+Regole:
+ISTR è in formato J(ump): inserise VS/4 nell'istr
+	 è un salto in formato I: (VS-(IADDR+4))/4
+	 è aritmetico/logica in formato I: inserire i 16 bit meno significativi di VS (VS_Low)
+	 è di tipo load o store: inserisco VS - GP
+	 è di tipo lui: inserisco i 16 bit più significativi di VS (VS_High)
+
+Tabella di rilocazione dei moduli
+Indirizzo	Istruzione
+-File/modulo A
+40 0000		lw $a0, 0($gp)	*
+40 0004		beq $a0, $0, 0	*
+40 0008		jal 0			*
+-File/modulo B
+40 000C		bne $a0, $0, 1
+40 0010		sw $a0, 0($gp)	*
+40 0014		lui $t0, 0		*
+40 0018		ori $t0, $t0, 0	*
+-Dati
+A X 1000 0000	128
+- W 1000 0004	0x12345678
+B Y 1000 0008	0
+
+Il professor Santambrogio ci parla delle iniziative al Campus Leonardo per gli studenti, complementari alla parte di studio
+
+a questo punto ho il file eseguibile, salvato sul disco fisso, viene portato nella memoria centrale, presi gli argomenti di ingresso al main, registri inizializzati, caricati lo stack pointer e viene inserito nel PC l'indirizzo della prima istruzione da eseguire 
+Caricamento dei parametri a0-a3
+Cosa succede alle funzioni di libreria? Una volta il linker agganciava anche quelle all'eseguibile, adesso non più.
+Le librerie vengono caricate dinamicamente quando il programma è in esecuzione (DLL: dynamic link library) e viene poi agganciata al programma
+
+in questa lezioni ci ho capito molto poco
