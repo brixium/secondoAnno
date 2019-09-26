@@ -493,3 +493,22 @@ Cosa succede alle funzioni di libreria? Una volta il linker agganciava anche que
 Le librerie vengono caricate dinamicamente quando il programma è in esecuzione (DLL: dynamic link library) e viene poi agganciata al programma
 
 in questa lezioni ci ho capito molto poco
+
+Giovedì 26 settembre 2019 (esercitazione col ragazzo)
+Ricorsione, Assemblatore (e linker) varie (frame pointer, maschere bianrie, ...)
+
+Ricorsione: MIPS con variabili intere a 32bit, fp (frame pointer = punta all'inizio dell'area memoria funzione. Di solito non viene usato se non in casi speciali) non in uso, variabili allocate nei registri, se possibile; si salvano solo i registri necessari
+
+Svolgere i seguenti 4 punti:
+vai a vedere 20190926/ese1.c e ese1.asm
+
+esercizio nuovo, supponiamo di avere tanti moduli che devono essere assemblati in dei file oggetto. Problema sorge quando ci sono dei riferimenti esterni.
+
+Esercizio assemblatore
+
+All'esame sicuramente traduzione da C a assembly e poi un esercizio strano tipo
+-utilizza mappe di bit/byte per recuperare il numero in memoria, se è a 0, ...
+-questo che ci propone lui
+
+Ci sono due moduli con delle cross-references e compilare le 3 tabelle tenendo contro dei due moduli
+breve ripasso dei numeri decimali / esadecimali / binari
