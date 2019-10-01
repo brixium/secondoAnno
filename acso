@@ -512,3 +512,157 @@ All'esame sicuramente traduzione da C a assembly e poi un esercizio strano tipo
 
 Ci sono due moduli con delle cross-references e compilare le 3 tabelle tenendo contro dei due moduli
 breve ripasso dei numeri decimali / esadecimali / binari
+
+
+Martedì 1 ottobre 2019
+
+Architettura del processore
+
+Progettare il processore MIPS. Servono gli oggetti base elettronici, principalmente transistor che immaginiamo binari ma in realtà ci sono due livelli di tensione, basso (0 V) e alto (1.8 V). Noi utilizzeremo dei circuiti elementari, non scendiamo ai transistor.
+Noi utilizzeremo dei circuiti elementari, non scendiamo ai transistor.
+Due grandi classi di circuiti elementari:
+	- combinatori: il circuito produce un'uscita nello stesso istante dell'ingresso (semplici) ma non hanno memoria (l'uscita è in funzione dell'ingresso).
+	- sequenziali: l'uscita al tempo t è funzione degli ingressi al tempo t ma anche dello stato, la storia degli eventi passati
+
+cenno di porte logiche.
+Specifica delle funzionalità->rete logica
+Algebra di commutazione è il punto di partenza. È parte dell'algebra booleana e utilizza solo 0 e 1.
+Variabili logiche possono assumere solo valore 0 oppure 1. x=0 se x=/=1 e viceversa.
+Operatori:
+	negazione: NOT f(x)=0 => x=1; f(x)=1 => x=0.
+	somma logica: OR f(x,y)=0 => x=y=0 else f(x,y)=1
+	prodotto logico: AND f(x,y)=1 => x=y=1 else f(x,y)=0
+(sono raccolte nelle tabelle di verità)
+
+Proprietà fondamentali dell'algebra di commutazione
+____________________________________________________________________
+				|	AND(*)			|	OR(+)						|
+----------------|-------------------|-------------------------------|
+identità		|	1*x=x			| 0+x=x							|
+elemento nullo	|	0x=0			| 1ORx=x						|
+idempotenza		|	X*X=X			| XORX=X						|
+inverso			|	X AND (!X)=0	| XOR(!X)=1						| (! è il negato)
+assorbimento	| X AND (X+Y)=X		| X+X*Y=X						| (serve per semplificare)
+pr.commutativa	| XY = YX			| XORY = YORX					|
+pr.associativa	| (XY)Z = X(YZ)		| (X+Y)+Z = X+(Y+Z)				|
+pr.distributiva	| X(Y+Z)=XY+XZ		| X+YZ=(X+Y)(X+Z)				|
+teo.di De Morgan| !(X*Y)=!X+!Y		| !(X+Y)=!X*!Y					|
+teo del consenso| XY+!XZ+YZ=XY+!XZ	| (X+Y)(!X+Z)(Y+Z)=(X+Y)(!X+Z)	|
+--------------------------------------------------------------------|
+
+Prova a semplificare questa funzione applicando questi teoremi
+f = A+!AB+!ABC =(mia soluzione)= A(1+0B+0BC) = A sbagliata
+SOLUZIONE CORRETTA: applicando la proprietà distributiva + identità = A+!AB(1+C) = per propr. elemento nullo = A+!AB1 = applico propr.distributiva = (A+!A) (A+B) = 1*(A+B) = A OR B
+
+Specifica della funzionalità può essere fornita come:
+	tabella delle verità
+	funzione logica
+	rete logica 
+Esempio:
+Per esprimere 3 uscite devo dare 3 eq.logiche. Come faccio a scrivere la funzione logica da una descrizione a parole
+Supponiamo che l'uscita D assume valore 1 sse almeno uno dei 3 ingressi ha valore 1, l'uscita F assume 1 sse tutti e 3 gli ingressi hanno valore 1 e l'uscita E assume valore 1 sse esattamente 2 ingressi hanno valore 1.
+Risposta:
+L'uscita D si esprime con: A OR B OR C = D
+L'uscita F diventa: A AND B AND C = F
+L'uscita E è un po'più complessa. A*B=1, C deve essere 0 (1/3 caso)
+_tabella_
+A B C | E D F
+0 0 0 |	0 0 0
+0 0 1 |	0 1 0
+0 1 0 |	0 1 0
+0 1 1 |	1 1 0
+1 0 0 |	0 1 0
+1 0 1 |	1 1 0
+1 1 0 |	1 1 0
+1 1 1 |	0 1 1
+---------
+Quindi E = !ABC+A!BC+AB!C
+
+Disegni delle porte logiche:
+NOT è un triangolo con 1 ingresso che ha un pallino (base) ed 1 uscita (punta). (spesso si usa solo il pallino senza triangolo)
+OR è una punta di freccia: le entrate nella parte concava, l'uscita nella freccia
+AND è un semicerchio con gli ingressi nel piatto e 1 uscita
+
+Esempio A+B+C. Sono eseguite prima A+B e poi il risultato + C se ho un operatore binario, se è ternario uso una porta a 3 ingressi. Ci ci mette più tempo sono i segnali A e B che devono attraversare due porte, mentre C una sola
+Esempio A*B*C che diventa (A*B)*C.
+Esempio dell'uscita E=!ABC+A!BC+AB!C di prima. Cammino + lungo è quello di A che si fa 1 not, 2 and e 2 or
+
+NAND (NOT AND) e NOR (NOT OR) sono operatori funzionalmente completi
+Con il NAND posso realizzare il NOT, l'AND e l'OR
+___NAND____
+X Y | !(XY)
+----|------
+0 0 |	1
+0 1 |	1
+1 0 |	1
+1 1 |	0
+
+___NOR_____
+X Y | !(X+Y)
+----|-------
+0 0 |	1
+0 1 |	0
+1 0 |	0
+1 1 |	0
+
+Come si fa un NOT usando un NAND? Così: !(XX) = !X+!X = !X
+AND si fa mettendo NOT dopo il NAND. Così: !!(XY) = XY
+OR con NAND: X+Y = !(!X !Y)
+Altri operatori sono lo XOR (OR esclusivo) e XNOR
+XOR si disegna come una doppia punta di freccia.
+__XOR____
+X Y | XOR
+0 0 |	0
+0 1 |	1
+1 0 |	1
+1 1 |	0
+
+___XNOR___
+X Y | XNOR
+0 0 |	1
+0 1 |	0
+1 0 |	0
+1 1 |	1
+
+Scrivere la XOR con solo NOT, AND e OR
+f = (x*!y) || (!x*y)
+Scrivere la XNOR con solo NOT, AND e OR
+f = !(X*Y) || (X*Y)
+
+Per costruire la notazione dal disegno si va da sinistra a destra e si compone
+Specifica a parole
+	\->Tabella delle verità
+		\->Funzione logica
+
+Esercizio:
+X Y Z | f
+------|---
+0 0 0 | 0
+0 0 1 | 0
+0 1 0 | 0
+0 1 1 | 0
+1 0 0 | 1
+1 0 1 | 0
+1 1 0 | 1
+1 1 1 | 1
+Prendo i 3 termini che la funzione mette a 0 e uso la prima forma canonica sottostante.
+1 0 0 lo esprimo come X*!Y*!Z
+1 1 0 si esprime come X*Y*!Z
+1 1 1 lo scrivo come X*Y*Z
+Infine faccio la somma logica di questi tre termini
+f = (X*!Y*!Z)+(X*Y*!Z)+(X*Y*Z)
+^^questa formula si può semplificare di molto usando le reogle qui sotto.
+Adesso risolvo con la seconda forma canonica:
+X|Y|Z & X|Y|!Z & X|!Y|Z & X|!Y|!Z & !X|Y|!Z
+^^anche qui può essere semplificato
+f = X(Y+!Z) <-funzione semplificata
+
+Esistono 2 forme standard per semplificare le funzioni logiche
+1ma forma canonica: 
+	Ogni funzione f può essere specificata mediante la somma logica (OR) di tutti e soli i termini prodotto (AND) delle variabili di ingresso corrispondenti al valore 1 assunto dalla funzione
+	Termine prodotto (MINTERMINE): prodotto logico (AND) di tutte le variaibli in ingresso della funzione prese in forma naturale se sono = 1, e in forma negata se sono = 0 nella configurazione di ingresso
+2nda forma canonica (è duale della prima):
+	f può essere espressa come il prodotto logico (AND) dei termini somma (OR) delle variabili in ingresso corrispondenti agli zeri della funzione e il termine somma, che viene chiamato anche MAXTERMINE, è la somma logica delle variabili in ingresso in forma naturale se hanno valore 0 e in forma complementata se hanno valore 1
+
+Domani vediamo i componenti combinatori
+
