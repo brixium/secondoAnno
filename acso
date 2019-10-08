@@ -666,3 +666,218 @@ Esistono 2 forme standard per semplificare le funzioni logiche
 
 Domani vediamo i componenti combinatori
 
+
+Mercoledì 2 ottobre 2019
+Sintesi combinatoria
+Data una specifica, possiamo usare una tabella delle verità (solo quando ci sono pochi ingressi) oppure con la equazione logica.
+Dalla tabella delle verità si può ricavare l'equazione con la prima e la seconda forma canonica. Prima è somma di prodotti e la seconda è un prodotto di somme. Questa rappresentazione non è ottima perché non ha il numero minimo di variabili.
+Esemio di ieri: f = x(!y)(!z)+xy(!z)+xyz
+					1  0  0  ,1 1 0, 111
+È semplificabile utilizzando la proprietà sitributiva -> f=x(!y!z+y!z+yz).
+Applico di nuovo la stessa pr. -> f=x(!z(!y+y)+yz) ->(mi avvalgo del fatto che !y+y=1 e 1*j=j) f=x(!z+yz)
+A questo punto applico la proprietà dell'assobimento al contrario: !z=!z+y*!z
+f=x(!z+y!z+yz) =x(!z+y(!z+z))=x(!z+y)
+
+Blocchi combinatori (slide "Il livello logico digitale" disponibile online)
+I tipici blocchi funzionali combinatori sono:
+	1)multiplexer (MUX): ogni ingresso è numerato, c'è un ingresso di selezione che decide l'uscita. A forma di trapezio.
+		Esempio MUX: 1 ingresso di selezione, 2 input, 1 output. L'ingresso di seleziona determina l'output. Tabella verità:
+I1 |I2 |SEL|OUT
+---------------
+0	0	0	0
+0	1	0	0
+1	0	0	1
+1	1	0	1
+0	0	1	0
+0	1	1	1
+1	0	1	0
+1	1	1	1
+		In questo caso la formula logica è: C=!SA+SB. Dove C è l'uscita, S è la selezione, A è il primo ingresso e B il secondo ingr.
+		Esempio se il MUXer ha più di 2 ingressi (4 in questo caso), dovraà avere più ingressi di selezione (in questo caso 2 (2^2))
+		Se voglio un muxer a 2 ingressi dati da k bit devo mettere in cascata più muxer semplici da 2 ingressi che hanno tutti la medesima selezione in input.
+		
+	2)demultiplexer (DEMUX): meno ingressi, più uscite e controllo. Il controllo decide dove inviare l'uscita
+	tabella verità
+	I S1 S2 01 02 03 04
+	D 0  0  D  0  0  0
+	D 0  1  0  D  0  0
+	D 1  0  0  0  D  0
+	D 1  1  0  0  0  D
+
+	3)Decodificatore (DECoder)
+		non fa passare un dato ma determina l'uscita a seconda degli ingressi (inngressi < uscite)
+		tab verità:
+		i1|i2|u0|u1|u2|u3|
+		0 |0 |1 |0 |0 |0
+		0 |1 |0 |1 |0 |0
+		1 |0 |0 |0 |1 |0
+		1 |1 |0 |0 |0 |1
+		con le porte logiche si fa mettendo degli and in cascata con alcuni not davanti. Tanti and quante uscite
+	4)Comparatore o confrontatore:
+	Ha due gruppi di ingressi A e B da n>=1 bit ciascuno e 3 uscite: a<b, a>b e a=b. Sulle slide esempio di confrontatore di numeri a 2 bit. Se i numeri in ingresso da A e da B hanno 2 bit, due ingressi per ciascun gruppo, le uscite sono sempre 3.
+
+	5)Shifter combinatorio: (sempre di 1 posizione)
+		1)scorrimento verso sinistra (moltiplicazione *2: aggiungere uno zero da destra)
+		2)scorrimento verso destra   (divisione *2: aggiungere uno zero da sinistra)
+		S/!D indica in che direzione shiftare (0=verso destra, 1=verso sinistra)
+				Lshift		Rshift
+		Out(n)	I(n-1)		New bit(0)
+		Out(i)	I(i-1)		I(i+1)
+		Out(0)	new bit(0)	I(1)
+	Componenti aritmetici (somma e sottrazione)
+	6)Sommatore o addizionatore: half adder (semisommatore) e full adder 
+		Half adder ha due ingressi e due uscite. In ingresso i due numeri e in uscita la somma (XOR) e il riporto (carry)
+		\-> è come fare la somma in colonna. Sum = A(XOR)B, carry= A&B
+		Full adder: ha 3 ingressi (2 numeri e carry) e 2 uscite: sum e carry
+		\-> sum=A(XOR)B^carry (^ è xor), il carry out sarà: ABCarryin+AB!carryin+A!Bcarryin+!ABcarryin che semplificato diventa A(B+carryin)+Bcarryin
+		Per un semplice sommatore a k bit bisogna fare un half adder all'inzio e poi full adder fino alla fine. Problema delle prestazioni: il cammino più lungo è quello del carry che fa aspettare tutti i full carry. Nella realtà i calcolatori hanno un circuito che predica il carry. Questo sistema si chiama "carry look ahead".
+		Moltiplicatore Dadda è figlio del prof.Dadda del PoliMi
+		Noi vediamo il sommatore come una scatola chiusa.
+
+		Sottrattore. Analogamente al sommatore ci sono: semi-sottrattore e sottrattore intero
+Problemino: in ingresso due numeri interi naturali positivi a k bit e un ingresso di controllo. in uscita un numero intero binario naturale Z da k bit. Su Z deve presentarsi la somma A+B se C=0, la differenza A-B se C=1. In hardware questa cosa si fa in modo diverso dal software, che controlla prima l'ingresso di controllo. Si fa prima sia la somma e la sottrazione e poi se vede cosa mandare in output, attravero un multiplexer che riceve in ingresso somma e sottrazione e in controllo C. L'uscita sarà Z. È lo stesso modo in cui ragiona l'unità aritmetico-logica del processore (ALU) che sanno fare somma in C2, AND, OR, NOT e comparatore.
+Esempio ALU a 2 bit e 2 bit di controllo con multiplexer.
+Nell'appendice B troviamo:
+	Numeri reali espressi in IEEE754
+	Il segnale di zero
+	L'indispensabile _Overflow Detection_
+
+Esercizi su parte combinatoria e sequenziale.
+1) overflow. Progettare circuito combinatorio che segnali overflow di una somma di numeri in complemento a due. Qui ci viene in mente la Bolchini: overflow non si verifica se gli operandi hanno segno discorde. Se gli operandi hanno segno uguale ma il risultato ha segno opposto, si è verificato overflow.
+Tabella verità. s1: bit + significativo 1mo operando, s2: bit + significativo 2ndo operando, sr: bit + sign. risultato
+s1|s2|sr|OvF
+0 |0 |0 |0
+0  0  1 |1
+0  1  0 |0
+0  1  1 |0
+1  0  0 |0
+1  0  1 |0
+1  1  0 |1
+1  1  1 |0
+
+Scrivere la prima forma canonica di ciò. OvF=(!s1*!s2*sr) + (s1*s2*!sr)
+Disegnare il circuito
+2)Rete combinatoria con 3 ingressi (A, B, C) e 2 uscite (C1 e C0)
+Le due uscite devono rappresentare in binario naturale (intero) il conteggio del numero di uni presenti sugli ingressi ABC
+tabella verità:
+ |A|B|C|C1|C0
+0|0|0|0|0 |0
+1|0|0|1|0 |1
+2|0|1|0|0 |1
+3|0|1|1|1 |0
+4|1|0|0|0 |1
+5|1|0|1|1 |0
+6|1|1|0|1 |0
+7|1|1|1|1 |1
+1ma forma canonica:  C0 = (!A!BC)+(!AB!C)+(A!B!C)+(ABC); C1= !ABC+A!BC+AB!C+ABC
+2nda forma canonica (vado a vedere gli zeri della funzione, normali se =0, negati e =1):
+C0 = (A+B+C)*(A+!B+!C)*(!A+B+!C)*(!A+!B+C)
+C1 = (A+B+C)*(A+B+!C)*(A+!B+C)*(!A+B+C)
+La tabella fuò essere fornita vuota ma ti viene detto "la funzione C0 è caratterizzata dai seguenti MINTERMINI (= per quali configurazioni di ingresso l'uscita vale 1): 1,2,4,7, MINTERINI della funzione C1: 3, 5, 6, 7"
+
+Ritardo massimo (misurato su 1 segnale) se NOT=1ns, AND=2ns, OR=3ns
+C0 ha 1 NOT, 2 AND, 2 OR = 1+4+6=11ns
+Una porta a N ingressi è implementata da N-1 porte a 2 ingressi.
+
+Semplificare le funzioni.
+Consiglio: se ho una funzione con termini dispari, fare in modo che diventi pari. In che modo? Con la proprietà di idempotenza (x=x+x).
+G(a,b,c) = !a!b!c+!a!bc+!ab!c
+	1)applico idempotenza: !a!b!c+!a!bc+!ab!c+!a!b!c
+	2)applico pr.distributiva: !a!b(!c+c)+!a!c(b+!b)
+	3)siccome !c+c = 1 e b+!b=1 ho:  !a!b+!a!c = !a(!b+!c)
+
+z = !((A^B)+(C^D)) . Cosa faccio? Prima cosa: ESPANDO lo XOR. A^B = A!B+!AB
+
+Martedì 8 ottobre 2019
+
+Circuiti sequenziali. È così se le sue uscite non dipendono solamente dagli ingressi ma dallo stato, cioè dal comportamento passato.
+Una stessa configurazione in ingresso applicata in istanti diversi produrrà un uscita diversa.
+u(t) = f(i(t), stato)
+Lo stato contiene l'info passato dal circuito.
+È bistabile: el. di mem. in grado di memorizzare un bit di informazione.
+          ______________
+--------->|Circuito    |
+ingresso  |combinatorio|------>uscita
+      /-->|____________|--------
+	  |                        |
+	  |stato attuale           |stato futuro
+	  |                        |
+	  _______________________  |
+      |                     |  |
+	  | Elementi di memoria |<-/
+	  |_____________________|
+I bistabili esistono sincroni e asincroni.
+	Asincroni: stato cambia ad ogni evento sul segnale di ingresso in qualunque istante di tempo.
+	Sincroni: sensibili ad un segnale di controllo di sincronizzazione (il nostro è il clock). Sincronizzazione uscite / transizione di stato avviene solo in corrispondenza di eventi sul segnale di sync (controllo).
+		Due tipi di bistabili sincroni: Gated lech e flip flop.
+			Gated lech sono controllati.
+			Flip flop sono di 2 tipi: master-slave e edge-triggered
+
+I bistabili sono fatti con il bistabile SR asincrono.
+Per sapere come funziona bisogna avere a mente la porta logica NOR (tutti 0 in uscita, tranne quando in ingresso ci sono tutti 1).
+Il bistabile SR asincrono ha 2 ingressi esterni (S e R), due NOR e due uscite !Q e Q. Se S e R l'uscita rimane quella del passato.
+S | R | Q |!Q | (SET, RESET, Q, Q negato)
+0 | 0 | Q |!Q | (se Q=1 in partenza, rimane 1; se invece Q=0, Q rimane 0 e Q!=1)
+0 | 1 | 0 | 1 | (indipendentemente dall'uscita precedente)
+1 | 0 | 1 | 0 | (indipendentemente dall'uscita precedente)
+1 | 1 | 0 | 0 | (ha poco senso fare set e reset insieme, ma se lo faccio ha un comportamento indesiderato / non previsto. EVITARE)
+
+Altro modo per rappresentare il bistabile è un diagramma temporale. Sulle ascisse tempo, sulle ordinate R, S e Q.
+ ^
+.|______         ______ 1
+Q|      \_______/       0
+.|__             __     1
+S|  \___________/  \___ 0
+.|        __            1
+R|_______/  \___________0
+.|
+ |---------------------->t
+
+Nei bistabili sincroni nel grafico c'è anche il clock da considerare sull'asse verticale.
+Bistabile SR sincrono (latch SR)
+Si aggiungono 2 porte AND davanti per il clock
+Temporizzato a livello.
+
+R-----|AND)---
+clock-/        Qui il resto del grafico è uguale a quello precedente.
+      \
+S-----|AND)---
+
+C | S | R | Q |!Q|
+--|---|---|---|--|
+0 | X | X | Q |!Q| (X = don't care)
+1 | 0 | 0 | Q |!Q| quando il livello è a 1 tutto il cambiamento passa secondo il comportamento dettato dall'SR asincrono.
+1 | 0 | 1 | 0 | 1|
+1 | 1 | 0 | 1 | 0|
+1 | 1 | 1 | 0 | 0|
+
+Bistabile D sincronizzato
+
+Dove D è il dato che verrà sincronizzato
+
+\
+ \D
+  \______
+   |     |AND)
+   |    /
+   |C--/
+   |   \
+   |    \
+   \-NOT-|AND)
+
+C|D|Q|!Q
+-|-|-|--
+0|X|Q|!Q
+1|0|0| 1
+1|1|1| 0
+
+Ritardo di propagazione
+Problema del fenomeno di trasparenza (indesiderato). Per risolverlo utilizziamo i flip-flop.
+Vantaggio di usare il fronte anziché il livello del clock
+
+Comandi di ripristino: CLR (clear, imposta a 0 e quello che imposta a 1).
+I flip flop sono fatti da 2 o 3 bistabili
+
+Flip-flop D master-slave 
+Il master è il primo (principale), lo slave quello in cascata (ausiliario). È una coppia di bistabili sincroni D trasparenti in cascata con clock invertiti; l'insieme dei due non presenta il fenomeno di trasparenza
+
