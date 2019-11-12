@@ -881,3 +881,184 @@ I flip flop sono fatti da 2 o 3 bistabili
 Flip-flop D master-slave 
 Il master è il primo (principale), lo slave quello in cascata (ausiliario). È una coppia di bistabili sincroni D trasparenti in cascata con clock invertiti; l'insieme dei due non presenta il fenomeno di trasparenza
 
+Edge-triggered D flip-flop
+È meno costoso del precedente perché usa una OR
+Costo totale: 6 nor + 1 or
+Il cambiamento si vede sul fronte di uscita
+
+D C Q !Q
+0 1 Q !Q
+
+Sia il master-slave e che l'edge triggered sono identici per quanto riguarda l'uscita
+
+Giovedì 10 ottobre 2019
+
+ACSO esercitazioni, esercizi reti - reti sequenziali
+Rete combinatoria
+Le uscite dipendono direttamente dagli ingressi
+Reti sequenziali
+Bistabile SR asincrono
+(FPGA)
+Esercizio TDE
+
+Martedì 15 ottobre 2019
+Architettura MIPS
+Prelievo istruzione da memoria e incremento PC->lettura 2 registri->operazioni ALU, che possono essere varie.
+Register file, 2 richieste lettura 1 in scrittura
+leggi appunti cartacei
+
+
+
+-----------------
+Seconda parte: SISTEMI OPERATIVI
+Martedì 12 novembre 2019
+S.O. multitasking o multiprocesso: possono esserci più processi in esecuzione simultaneamente, seppure la CPU è una sola.
+Due modi per multitasking: tramite processi o tramite thread
+Macchina virtuale
+File system alla fine del corso
+
+Il SO è in grado di virtualizzare i processi e far credere loro che occupino interamente le risorse, ma è il SO che le alloca.
+Con questa soluzione non si può interagire direttamente con l'HW ma ci si deve affidare alle chiamate di sistema, solitamente integrate in delle librerie.
+Il SO non è monolitico ma anche lui è composto da più processi.
+Come creare processi?
+	-> chiamate di sistema per gestirli
+Primitive di gestione processi
+Ogni processo ha il proprio PID (Process IDentifier) univoco.
+Differenze tra programma e processo?
+Processo fatto da 3 parti:
+	1) segmento codice (text segment)
+	2) s. dati (data) che contiene tutte le variabili globali e statiche, locali sulla pila e dinamiche con la malloc
+	3) s. di sistema: contiene dati che servono al SO per gestire il programma in esecuzione
+A parte init che non ha un processo padre, tutti gli altri ce l'hanno. Un processo padre può creare i processi figli.
+Non c'è alcuna relazione tra fratelli
+Per generare un processo figlio esiste la funzione fork(), che crea un clone esatto del padre nel momento in cui viene creato
+
+pid_t fork();	//pid_t è un intero. La funzione restituisce al padre il PID assegnato al figlio, il figlio restituisce 0.
+pid_t getpid(); // è una funzione che restituisce a chi la invoca il suo PID
+void exit(int code); //funzione di exit termina il programma e restituisce un codice al padre
+
+void main(){
+	pid_t pid1, pid2;
+	pid1 = fork(); //a questo punto esistono 2 processi con pid1 e pid2. SI distinguono perché il padre in pid1 ha il PID del figlio, il figlio ha 0.
+	if(pid1 == 0){ // siamo sicuri che solo il processo figlio eseguirà questa istruzione
+		printf("Figlio PID: %d\n", getpid());
+		exit(0);
+	}
+	pid2 = fork();
+	if(pid2 == 0){
+		printf("Figlio PID: %d\n", getpid());
+		exit(0);
+	}
+	if(!pid1 && !pid2){
+		printf("Padre PID: %d\n", getpid()); // non so in che ordine verranno scritte queste istruzioni
+		printf("Figlio 1 PID: %d\n", pid1);
+		printf("Figlio 2 PID: %d\n", pid2);
+		exit(0);
+	}
+}
+
+Per sincronizzare i processi posso utilizzare la chiamata wait(). Questa istruzione blocca il programma che l'ha chiamata. Cosa fa?
+Qunado un figlio termina, il padre viene sbloccato. 
+
+pid_t wait(int *) //il valore resituito è il n PID del figlio terminato. Si passa come parametro un valore intero (moltiplicato per 256) passato dal figlio al padre
+
+Se inserissi due istruzioni di wait tra le printf, saprei l'ordine esatto in cui i processi terminano
+
+if(!pid1 && !pid2){
+		printf("Padre PID: %d\n", getpid());
+		printf("Figlio 1 PID: %d\n", pid1);
+		printf("Figlio 2 PID: %d\n", pid2);
+		//qui vanno le 2 wait(), credo 
+		exit(0);
+}
+
+Esiste anche la funzione waitpid
+
+pid_t waitpid(pid_t pid, int* status, int options) //opzioni irrilevanti (mettiamo a 0)
+Con questo il padre aspetta la terminazione del figlio con PID==pid (il primo parametro passato)
+
+La funzione exec permette di creare un figlio che ha il segmento codice e dati differenti da quello del padre, ma uguali a quelli di un file eseguibile.
+
+int execl(char * path, char * arg0, char * arg1, ...) //path è il percorso dove è situato il programma, arg0, ecc... sono puntatori a stringhe che verranno passate come parametri al main del programma. arg0 è il nome del programma e argN è null per indicare che sono finiti i parametri
+
+Il processo zombie è terminato ma non è ancora stato pulito perché aspetta il ritorno dei figli.
+
+Supponiamo che il padre abbia PID=500 e il figlio 1 ha PID 501. Il padre finisce dopo figlio 1 che finisce dopo figlio 2
+int main(){
+	int i,j,k,stato;
+	pid_t pid1, pid2;
+	i=10; j=20; k=30;
+	pid1 = fork();
+	if(pid1==0){
+		j++;
+		pid2 = fork();
+		if(pid2==0){
+			k++;
+			exit();
+		}else{
+			wait(&stato);
+			exit();
+		}
+	}else{
+		i++;
+		wait(&stato);
+		exit();
+	}
+}
+
+
+I THREAD
+Modello dei thread. È nato dopo il multiprocesso.
+All'interno di un processo possono essere attivi più thread contemporaneamente (non in esecuzione)
+Esistono processi "normali", cioè a singolo thread, oppure multithread che conividono dati e file (parte dei dati e codice intero condivisi) ma una pila diversa. Quindi le variabili locali sono proprie di ogni thread. Ogni thread ha associato uno stato di esecuzione.
+Per semplificare definiamo 3 stati del thread:
+	1)esecuzione: sta eseguendo operazioni sul processore
+	2)pronto: p. per essere eseguito ma il processore è occupato
+	3)attesa: quando devo interagire con periferiche (disco fisso, tastiera, mouse, video, ...)
+
+Utilizziamo lo standard POSIX Pthread
+Il thread è gestito direttamente dal kernel del SO. Quando il thread va in esecuzione gli viene assegnato un quanto di tempo durante il quale può utilizzare il processore. Se finisce prima bene, altrimenti viene interrotto e accodato
+
+Concorrenza vs parallelismo
+Due attività A e B sono sequenziali se è possibile stabilire un ordine di esecuzione A<B o B<A.
+A e B si dicono concorrenti se non si possono dire sequenziali
+A e B si dicono parallele se non è possibile stabilire un ordine di esecuzione tra le attività di A e quelle di B
+Nell'ipotesi di avere un solo processore concorrenza e parallelismo sono la stessa cosa
+
+Se termina il main, terminano i thread, in qualunque stato fossero.
+Ogni thread ha il suo threadID, univoco all'interno del processo ma non al suo esterno
+Attesa: metodo join. Non ci sono thread padri o figli, c'è la possibilità di aspettare il thread desiderato sapendone il threadID
+Terminazione: return. Esiste anche la exit come per i processi
+Ogni processo ha il suo thread principale, che è la funzione main, creata automaticamente.
+Ogni thread ha la sua pila ma le variabili globali sono in comune
+
+Sintassi funzioni per i thread:
+pthread_create(pthread_t * threadID, pthread_t *attr, void * (*start_func)(void *), void * arg)
+	Argomenti: threadID, null, start_func, puntatore ad area di memoria che voglio passare al thread
+int pthread_join(phtread_t target_thread, void * status)
+	Argomenti: chi sto aspettando, var in cui viene scritto valore return
+
+Esempio:
+
+#include <pthread.h>
+#include <stdio.h>
+void * tfi(void * tID){
+	int conta = 0;
+	conta++;
+	printf("sono il thread n.%d, conta=%d\n", (int)tID, conta);
+	return NULL;
+}
+
+int main(){
+	pthread_t tID1, tID2;
+	pthread_create(&tID1, NULL, &tf1, (void *)1);
+	pthread_create(&tID2, NULL, &tf2, (void *)2);
+	pthread_join(tID1, NULL);
+	pthread_join(tID2, NULL);
+	return 0;
+}
+
+Così l'ordine di esecuzione non si sa. Adesso apporto una modifica:
+int conta = 0 diventa static int conta = 0.
+Così facendo non ho la certezza dell'ordine di esecuzione dei due thread, ma so che il risultato è ordinato.
+Se non avessi messo la join è possibile che la variabile conta non venisse incrementata da nessuno
