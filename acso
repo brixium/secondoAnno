@@ -1042,7 +1042,7 @@ Esempio:
 
 #include <pthread.h>
 #include <stdio.h>
-void * tfi(void * tID){
+void * tf1(void * tID){
 	int conta = 0;
 	conta++;
 	printf("sono il thread n.%d, conta=%d\n", (int)tID, conta);
@@ -1052,7 +1052,7 @@ void * tfi(void * tID){
 int main(){
 	pthread_t tID1, tID2;
 	pthread_create(&tID1, NULL, &tf1, (void *)1);
-	pthread_create(&tID2, NULL, &tf2, (void *)2);
+	pthread_create(&tID2, NULL, &tf1, (void *)2);
 	pthread_join(tID1, NULL);
 	pthread_join(tID2, NULL);
 	return 0;
@@ -1062,3 +1062,103 @@ Così l'ordine di esecuzione non si sa. Adesso apporto una modifica:
 int conta = 0 diventa static int conta = 0.
 Così facendo non ho la certezza dell'ordine di esecuzione dei due thread, ma so che il risultato è ordinato.
 Se non avessi messo la join è possibile che la variabile conta non venisse incrementata da nessuno
+
+Mercoledì 13 novembre 2019
+Ripasso thread e processi.
+Per creare un thread si utilizza la funzione: 
+	int pthread_create(pthread_t * thread, const pthread_attr_t * attr, (void *)(*start_func)(void *), void * arg)
+					   ^il thread definito in precedenza; ^NULL;									   ^indirizzo arg passato alla func
+	int pthread_join(pthread_t thread, void * retval)
+										^indirizzo variabile che contiene il valore passato dalla return del thread.
+Esempio problemi thread.
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+int c = 0;
+
+void * th_fun(void * arg){
+	int a = 0, b=(int)arg;
+	a = b+c;
+	c=a*a;
+	return (void *)a;
+}
+
+int main(int argc, char * argv[]){
+	pthread_t th1, th2, th3;
+	int d;
+
+	pthread_create(&th1, NULL, &th_fun, (void *)3);
+	pthread_join(th1, (void *)&d);
+	pthread_create(&th2, NULL, &th_fun, (void *)d);
+	pthread_join(th2, (void *)&d);
+	pthread_create(&th3, NULL, &th_fun, (void *)d);
+	pthread_join(th3, (void *)&d);
+	return 0;
+}
+
+Cosa succede dopo la riga   a   b   c       d   arg
+15, rispetto al main        NE  NE  0       U   U/NE    (NE: non esiste)
+10, dopo r.17 (th1)         3   3   9       U   3
+18, rispetto al main        U   U   9       3   U
+10, dopo istr. 19           12  3   144     3   3
+20 (main)                   U   U   144     12  U
+10, dopo istr. 21           156 12  156*12  12  12
+22                          U   U   156*156 156 U
+
+Problemi se i thread devono utilizzare le stesse risorse. I processi si possono parlare ma quel tipo di comunicazione non è adatta ai thread.
+Meccanismi di concorrenza applicabili sia a processi che ai thread. Scopo: ordinare l'accesso alle risorse nel modo giusto, esecuzione deterministica. Problemi di serializzazione e di mutua esclusione
+
+Programmazione concorrente
+
+Serializzazione: evento A deve avvenire prima dell'evento B
+Mutua esclusione: gli eventi A e B non possono avvenire concorrentemente
+Un programma con thread multipli può non essere deterministica
+
+Marco e Paolo lavorano in due città diverse e Marco deve pranzare prima di Paolo. Come fa? GLi manda un messaggio per mangiare
+Marco				Paolo
+A1 colazione		B1 colazione
+A2 lavoro			B2 aspetta messaggio di Marco
+A3 pranzo			B3 pranzo
+A4 mess. a Paolo
+
+Per cui A1<A2<A3<A4 e B1<B2<B3. A4<B3 e ne risulta che A3<B3
+
+Esempio di codice delle slides
+Variabili condivise tra thread(globali e/o statiche)
+
+Thread A				Thread B
+			CODICE C
+a1	count++				b1 count++
+			CODICE ASM MIPS		
+a1	lw $t0, COUNT		b1	lw $t0, COUNT
+a2	addi $t0, $t0, 1	b2	addi $t0, $t0, 1
+a3	sw $t0, COUNT		b3	sw $t0, COUNT
+Sequenze di esecuzione:
+a1<a2<a3<b1<b2<b3	count+=2
+b1<b2<b3<a1<a2<a3	count+=2
+a1<b1<b2<b3<a2<a3	count+=1
+
+Condizione per la concorrenza: operazioni atomiche che vengono eseguite completamente senza interruzioni, altrimenti non vengono eseguite per nulla.
+
+IPOTESI C: tutte le modifiche ad una variabile condivisa NON sono atomiche, pertanto è necessario definire meccanismi che consentano l'accesso alle variabili condivise. Ogni volta che thread diversi modificano la stessa variabile in base al suo valore precedente bisogna garantire che le operazioni su questa variabile costituiscano sequenze critiche in mutua esclusione.
+
+
+Muuta esclusione (MUTual EXclusion): assicurare che un thread alla volta esegua una determinata attività
+Sezione critica: parte del codice che può essere eseguita da un solo thread alla volta in modo atomico
+Il costrutto MUTEX è messo a disposizione da pthread per gestire la mutua esclusione
+Per bloccare una risorsa esiste il lucchetto: lock, che previene qualcuno di accedere alla risorsa condivisa.
+Parole chiave: _lock e _unlock. 
+	_lock prima di entrare nella sezione critica dove accedo alla risorsa condivisa
+	_unlock all'uscita della sezione critica dopo aver terminato le operazioni sulla risorsa condivisa
+MUTEX
+def. di una variabile di tipo pthread_mutex_t:
+	pthread_mutex_t mutex;
+inizializza il mutex
+	pthread_mutex_init(&mutex, NULL) //NULL sarebbero gli attributi di default
+lock mutex:
+	pthread_mutex_lock(&mutex);
+unlock mutex:
+	pthread_mutex_unlock(&mutex);
+
+Esempio 1a di sequenza critica

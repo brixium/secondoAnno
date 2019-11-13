@@ -1,7 +1,7 @@
 #include <pthread.h>
 #include <stdio.h>
 void * tf1(void * tID){
-    int conta = 0; 
+    static int conta = 0; 
     conta++;
     printf("sono il thread n.%d, conta=%d\n", (int)tID, conta);
     return NULL;
