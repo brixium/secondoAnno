@@ -1162,3 +1162,45 @@ unlock mutex:
 	pthread_mutex_unlock(&mutex);
 
 Esempio 1a di sequenza critica
+
+Giovedì 14 novembre 2019
+
+ripasso spiazzamento rispetto al global pointer del tema d'esame
+
+Esercizi sui thread
+e1)
+#include <stdio.h>
+#include <pthread.h>
+
+void *tf(void *tID){
+    printf("I'm thread n.%d\n", (int) tID);
+    printf("I'm thread n.%d\n", (int) tID);
+    return NULL;
+}
+
+int main(void){
+    pthread_t tID1, tID2;
+    pthread_create(&tID1, NULL, tf, (void *)1);
+    pthread_create(&tID2, NULL, tf, (void *)2);
+    pthtread_join(tID1, NULL);
+    pthtread_join(tID2, NULL);
+    return 0;
+}
+ideone.com/jSXNKb <- IDE C online
+esercizio fibonacci
+
+somma concorrente
+problema del lettore-scrittore (produttore-consumatore). e6-e7
+deadlock e8
+
+Grafico per i thread 
+Quadrati=attori
+Cerchi=risorse
+i thread puntano sulle risorse quando aspettano che siano liberate
+
+|t1|-->(MB)
+ ^      |
+ |      ↓
+(MA)<--|t2|
+
+terzo esercizio sul problema deadlock
