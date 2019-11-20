@@ -1204,3 +1204,100 @@ i thread puntano sulle risorse quando aspettano che siano liberate
 (MA)<--|t2|
 
 terzo esercizio sul problema deadlock
+
+Martedì 19 novembre 2019
+
+Sequenza critica senza mutex (deadlock)
+Si assume che una istruzione di alto livello non sia corrispondente ad una sola istruzione atomica in asm.
+All'inizio della sezione critica blocco il mutex (lock) e poi lo sblocco con l'unlock
+Sequenza critica senza mutex - versione 3: eliminazione deadlock - Peterson
+	utilizzo una variabile per eliminare i deadlock
+Se l'ordine in cui vengono bloccate le variabili è diverso tra i vari thread, sicuramente si può verificare un deadlock con due o più variabili bloccanti. Condizione per evitare ciò è avere in tutti i thread il blocco risorse fatto nello stesso ordine
+Problema: voglio che due thread stampino delle stringhe alternate. Soluzione è un nuovo costrutto: il semaforo. Il semaforo è una variabile intera sulla quale si può operare solo così:
+- inizializzato con un valore e poi può essere solamente incrementato o decrementato di 1.
+tipo sem_t . sem_init per la creazione, per decrementare sem_wait(&semaforo) che verifica se semaforo == 0, allora viene bloccato
+per l'incremento c'è sem_post(&semaforo)
+Nello standard POSIX la variabile semaforo non scende mai sotto lo zero
+Per implementarli c'è semaphore.h
+sem_init(&semaforo, 0, 0)
+					^  ^-valore a cui inizializzo il semaforo
+					\-pshared (int): If the pshared argument has a non-zero value, then the semaphore is shared between processes
+
+se inizializzo semaforo = 0 il primo thread che arriva si blocca, se lo inizializzo a 1 il primo thread va avanti
+
+Per l'esempio axbycz come sequenza di due thread si risolve così:
+th1:					th2:
+sem_wai(&sem1);			stampa a;
+stampa(x);				sem_post(&sem1);
+sem_post(&sem2);		sem_wait(&sem2)
+sem_wait(&sem1);
+e così via
+
+Questo ci permette di introdurre il paradigma produttore-consumatore
+Supponiamo di avere un buffer di un solo carattere. C'è un produttore che scrive ed un consumatore che legge. In mezzo c'è un buffer.
+Per farla funzionare correttamente ci devono essere due semafori che indicano lo stato.
+Per il consumatore dice quanti caratteri sono presenti sul buffer, per il consumatore il numero di posizioni disponibili da scrivere
+Semaforo pieno, se pieno=0 non ci sono caratteri da leggere per il consumatore
+Semaforo vuoto per bloccare il produttore. Se vuoto=0 non ci sono posizioni disponibili per scrivere
+
+Generalizzare il produttore-consumatore con il concetto del rendez-vous
+Thread A	Thread B
+1. a1		1. b1 		<-eseguite subito
+2. a2		2. b2
+
+Vogliamo garantire a1<b2 AND b1<a2. abbiamo 2 semafori:
+Aarrivato ; Barrivato=0
+a1 può essere eseguito, e anche b1 può essere eseguito in qualunque momento. Adesso segnalo che A è arrivato al punto di sincronizzazione e che non può andare avanti se non 
+
+Esecuzione:
+Thread A					Thread B
+1. a1						1. b1
+2. sem_post(&Aarrivato);	2. sem_post(&Barrivato);
+3. sem_wait(&Barrivato);	3. sem_wait(&Aarrivato);
+4. a2						2. b2
+
+Qualunque sia l'ordine di esecuzione, non c'è deadlock. Se avessi messo prima entrambe le wait e poi le post, ci sarebbe un deadlock. Se avessi messo solo una wait prima di una delle due post, allora ok.
+I semafori sono più potenti dei mutex e possono implementarne uno. Un semaforo inizializzato a 1 è un mutex (mutua esclusione).
+
+Il problema della barriera.
+Ho un numero T di thread che si devono sincronizzare in un punto (un rendez-vous però con tanti thread).
+int count=0; // conta quanti thread sono arrivati al punto di sincronizzazione
+	^
+	\- accesso in mutua esclusione mutex
+sem_t barriera = 0; // finché non sono arrivati tutti quanti i T thread in barriera, impedisce di proseguire.
+
+
+Com'è fatto all'interno Linux?
+Linux è solo il kernel, si basa su UNIX.
+A noi intersessa il kernel mode, nello specifico File System, Memory management e process management.
+Funzioni di Linux - scheduling dei processi
+Parallelismo tra procesi. Linux è un S.O. multiprogrammato time-sharing
+a ogni processo è assegnato un quanto di tempo. allo scadere del quanto di tempo il processo viene sospeso dall'esecuzione (preemption) e un nuovo processo può utilizzare il processore.
+un processo può essere sospeso dall'esecuzione per sospensione volontaria (es. I/O) oppurea llo scadere del quanto di tempo.
+Preemption: il processo viene tolto dalla CPU e dato in carico a qualcun altro.
+Distinguere tra user space e kernel space.
+Tra hardware e kernel interrupt e DMA, ma questi li diamo per fatti.
+Devo dare la possibilità per aggiungere dei moduli kernel per gestire nuove risorse realizzate.
+Linux nasce prima dei thread. Come si gestiscono i thread? Sono realizzati, ma l'implementazione?
+Si chiamano lightweight processes ma nella norma non sono distinti thread e processi, ma sono genericamente chiamati task.
+Il processo normale ha
+-PC e SP
+-Registri CPU
+-Stack
+-Stdin/stdout/stderr
+-memoria (codice, dati e segmento di sistema)
+Il thread ha risorse proprie (PC, reg della CPU, stack e sp) ma memoria condivisa
+In linux ci sono Process ID e Thread Group ID per i thread (PID e TGID)
+Ad ogni processo è associata la coppia di identificatori <PID, TGID>
+
+La sostituzione di un processo in esecuzione con un altro si chiama _Commutazione di contesto_ o context switch
+Con contesto si intende l'insieme di informazioni relative al processo in esecuzione, la tabella di MMU
+Context switch vuol dire salvare il contesto in esecuzione tolto e caricare l'altro
+I/O bound (eseguono operazioni di I/O e bisogna stare attenti a non penalizzarli) o compute bound (questi sfruttano tutto il quanto di tempo).
+Il kernel di linux è not-preemtable, ovvero, quando è in esecuzione un processo del S.O. è sempre proibita la sua preemption.
+Questo va bene per sistemi normali, ma per quelli real-time è possibile utilizzare una versione del kernel preemptive.
+Ci sono meccanismi per limitare le operazioni che hanno effetto su altri processi
+Per inserire il modulo su linux insmod e per rimuoverlo rmmod
+Noi consideriamo un modello semplificato di linux, per cui abbiamo funzioni astratte che sono messe in italiano.
+Noi facciamo riferimento all'architettura x86-64 a 64 bit, architettura ISA definita nel 2000, evoluzione dell'intel x86, ed usiamo la Long 64-bit
+
