@@ -1301,3 +1301,107 @@ Per inserire il modulo su linux insmod e per rimuoverlo rmmod
 Noi consideriamo un modello semplificato di linux, per cui abbiamo funzioni astratte che sono messe in italiano.
 Noi facciamo riferimento all'architettura x86-64 a 64 bit, architettura ISA definita nel 2000, evoluzione dell'intel x86, ed usiamo la Long 64-bit
 
+Mercoledì 20 novembre 2019
+
+Ripasso time sharing, context switch.
+Tasks: 1 in esecuzione, più tasks pronte e più tasks in attesa.
+Modalità di esecuzione: (U)ser e SO=supervisor
+Strutture dati per la gestione dei processi
+	-descrittore del processo
+	-una pila di sistema operativo (sPila) del processo. Esiste una sPila diversa per ogni processo.
+Il processo ha due pile: la sPila viene utilizzata quando il processo chiede informazioni al sistema operativo. La uPila (pila utente) serve per variabili, chiamate a funzione, ecc...
+Descrittore del processo <linux/sched.h> viene allocata dinamicamente nella memoria dinamica del kernel ogni volta che viene creato un nuovo processo.
+struct task_struct{
+	pid_t pid;
+	pid_t tgid;
+	volatile long state;
+	void *stack;
+	struct thread_struct thread;
+	struct mm_struct *mm;
+	int exit_state;
+	int exit_code, exit_signal;
+	struct fs_struct *fs;
+	struct files...
+}
+
+struct thread_struct{
+	unsigned long sp0; //dove inizia in memoria la pila
+	unsigned long sp; //dove siamo sulla pila
+	unsigned long usersp; //dove è arrivata la pila utente
+}
+Per leggere sp0 e sp devo fare delle chiamate al SO
+Questo era il capitolo 1 (N1) del kernel della dispensa che c'è su beep.
+Ora inizia la parte N2: meccanismi hardware di supporto al sistema operativo
+
+Funzioni pop e push per operare sulla pila richiedono solo na istruzione ciascuna
+Semplificazioni per chiamata e ritorno di funzione
+PUSH rx
+POP rx
+CALL FUNCT (nel caller)
+RET (nel callee)
+
+Strutture dati ad accesso HW. SO può accedervi per impostare valori che governano il funzionamento dell'HW e per leggere valori perconoscere lo stato dell'HW.
+PSR (processor status register) contiene U/S, priorità corrente del processo 
+Chiamata al SO - SYSCALL
+COn l'istruzione SYSCALL, non privilegiata (quindi può essere eseguita in U), viene realizzato un salto al SO e quindi passa alla modalità di esecuzione S. Passaggi:
+1. valore incrementato di PC viene salvato sulla pila
+2. valore PSR salvato sulla pila (PUSH)
+3. nel PC e nel PSR vengono caricati dei valori presenti nel _vettore di syscall_
+Linux inizializza il vettore di syscall durante la fase di avviamento del sistema con la coppia: <indirizzo a funzione syscall, ...>
+L'istruzione privilegiata SYSRET fa cambiare la modalità di esecuzione da S a U. È l'unico punto di uscita dai servizi del SO.
+
+Il modello della memoria
+Lo spazio di indirizzamento potenzialmente disponibile è 2^64 byte.
+C'è una parte inutilizzabile che, di fatto, limita lo spazio di indirizzamento utilizzabile a 2^48 byte (256 TB).
+Lo userspace contiene la parte inferiore da 0 a 0x7FFF FFFF FFFF FFFF
+Il kernelspace ha la parte superiore che va da 0XFFF 8000 0000 0000 fino a 0XFFFF FFFF FFFF FFFF
+Entrambe sono limitate a MAX 2^47 Byte ciascuna
+La memoria è paginata, le pagine sono di 4kB.
+L'inidirzzo della memoria virtuale è fatto da n°di pagina e dda offset nella pagina
+
+Commutazione della pila nel cambio di modo
+Per poter commutare dal modo U a S e attivare la sPila è necessaria una struttura dati basata su due celle di memoria: USP e SSP (che in molti casi sono due registri non utilizzabili) per salvare lo user SP e il Supervisor SP. 
+Commutazione di pila
+Meccanismo di interrupt
+Interrupt e gestione degli errori (eccezioni). Spesso la gestione consiste nella terminazione forzata (abort) del programma che ha causato l'errore eliminando il processo.
+Interrupt annidati. Vengono eseguiti solo se la priorità del nuovo interrupt è maggiore
+Riassunto cambio di modo:
+meccanismo di salto|modo di partenza|modo di arrivo|meccanismo di ritorno|modo dopo il ritorno|
+-------------------|----------------|--------------|---------------------|--------------------|
+salto a funzione   | U              | U            |istruzione di ritorno| U                  |
+salto a funzione   | S              | S            |istruzione di ritorno| S                  |
+SYSCALL            | U              | S            |SYSRET               | U                  |
+interrupt          | U              | S            |IRET                 | U                  |
+Interrupt          | S              | S            |IRET                 | S                  |
+----------------------------------------------------------------------------------------------|
+Interfacce standard e Application Binary Interface (ABI)
+regole di invocazione del SO
+	n.servizio da invocare: registo rax
+	parametri da passare: reg. rdi, rsi, rdx, rd10, rd9, ...
+esempio del servizio read()
+
+Terzo set di slide (N3)
+Diagramma degli stati di un processo e relative transizioni di stato
+In ESECUZIONE: sta occupando la CPU
+In ATTESA: aspetta la fine dell'interrupt per andare in ready
+PRONTO: aspetta di essere eseguito
+Diagramma delle transizioni di stato
+Scheduler CFS (Completely Fair Scheduler)
+Politica di scheduling
+Il context switch è svolto dalla funzione schedule()
+
+Runqueue() è la lista di tutti i processi pronti. È composta da RB: lista di puntatori ai descrittori dei processi pronti (escluso quello corrente in esecuzione); e da CURR, puntatore che punta al descrittore del processo correntemente in esecuzione.
+La runqueue è una lista doppia circolare
+Esiste anche la waitqueue: una lista contente i puntatori ai descrittori dei processi in attesa di un certo evento
+Esiste una waitqueue separata per ogni evento. I processi in una waitqueue saranno risvegliati da una wakeup quando arriverà l'evento specifico. Quando un processo viene risvegliato viene posto nlla runqueue, quelli ancora accodati rimangono lì.
+Gestione si USP e SSP nel context switch, ovvero quando sostituisco il processo in esecuzione con un altro.
+Esempio: devo commutare P (in esecuzione) con Q (pronto) in modalità U
+	1) salvare USP nella sPila si P e nel descrittore usersp
+	2) salvare SPcorrente nel campo sp del descrittore
+	3) salvare PC nella sPila 
+Se invece volessi fare il contrario ricarico quello che ho salvato.
+Esempio 2: devo commutare P (in esecuzione) con Q (pronto, ma stava eseguendo il servizio 2) in modalità U
+	P esegue una syscall:
+		la system_call invoca il servizio s1
+	..
+
