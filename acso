@@ -1405,3 +1405,16 @@ Esempio 2: devo commutare P (in esecuzione) con Q (pronto, ma stava eseguendo il
 		la system_call invoca il servizio s1
 	..
 
+Giovedì 21 novembre 2019
+Esercizi programmazione concorrente
+Cose caricate sul beep
+Problema castng da void * a int su macchine 64 bit (void * viene considerato a 64 bit, int a 32)
+Per chi vuole fare robe belle coi thread con C c'è la libreria in extra_material.c -foemap
+
+Thread versus processi: vantaggi e svantaggi.
+I thread sono più efficienti ed è più comodo scambiare dati tra di essi; d'altro canto i processi sono più protetti perché uno non può danneggiare l'altro, inoltre è possibile il cambiamento di eseguibile. Ricordiamo che un thread è non deterministico.
+I semafori
+Esempi in acso-so/e1.c e acso-so/e1_1.c . Tempo di esecuzione del programma >=10 secondi
+Esercizio di scrittura di codice semaforo - bevuta.c e2.c
+
+Temi d'esame

@@ -10,30 +10,30 @@ Prima facciamo le funzioni ricorsive
 #include <stdlib.h>
 #include <pthread.h>
 
-int fibonacci_ricorsiva(int n){
+long fibonacci_ricorsiva(long n){
 	if(n<=0)
 		return 0;
 	if(n==1)
 		return 1;
-	int res1 = fibonacci_ricorsiva(n-1);
-	int res2 = fibonacci_ricorsiva(n-2);
+	long res1 = fibonacci_ricorsiva(n-1);
+	long res2 = fibonacci_ricorsiva(n-2);
 	return res1 + res2;
 }
 
 void * fib_concorrente(void * arg){
-    int n = (int) arg;
-	int res = fibonacci_ricorsiva(n);
+    long n = (long) arg;
+	long res = fibonacci_ricorsiva(n);
 	return (void *) res;
 }
 
-int main(int argc, char * argv[]){
+long main(long argc, char * argv[]){
 	if(argc < 2)
 		return -42;
-	int n = atoi(argv[1]);
-	int risultato_seq = fibonacci_ricorsiva(n);
+	long n = atoi(argv[1]);
+	long risultato_seq = fibonacci_ricorsiva(n);
 	printf("n=%d, fibonacci=%d\n", n, risultato_seq);
 
-	int argT1, argT2, resT1, resT2;
+	long argT1, argT2, resT1, resT2;
 	pthread_t idT1, idT2;
 
 	argT1 = n-1;
