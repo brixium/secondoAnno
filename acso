@@ -1394,7 +1394,7 @@ Runqueue() è la lista di tutti i processi pronti. È composta da RB: lista di p
 La runqueue è una lista doppia circolare
 Esiste anche la waitqueue: una lista contente i puntatori ai descrittori dei processi in attesa di un certo evento
 Esiste una waitqueue separata per ogni evento. I processi in una waitqueue saranno risvegliati da una wakeup quando arriverà l'evento specifico. Quando un processo viene risvegliato viene posto nlla runqueue, quelli ancora accodati rimangono lì.
-Gestione si USP e SSP nel context switch, ovvero quando sostituisco il processo in esecuzione con un altro.
+Gestione di USP e SSP nel context switch, ovvero quando sostituisco il processo in esecuzione con un altro.
 Esempio: devo commutare P (in esecuzione) con Q (pronto) in modalità U
 	1) salvare USP nella sPila si P e nel descrittore usersp
 	2) salvare SPcorrente nel campo sp del descrittore
@@ -1418,3 +1418,157 @@ Esempi in acso-so/e1.c e acso-so/e1_1.c . Tempo di esecuzione del programma >=10
 Esercizio di scrittura di codice semaforo - bevuta.c e2.c
 
 Temi d'esame
+
+
+Martedì 26 novembre 2019
+Come il kernel (nucleo) esegue una gestione multiprocesso con una sola CPU
+Il processo può essere in modalità utente se lo ha scritto lui oppure supervisore se è svolto per conto del SO.
+Per entrare in modalità S (supervisor) si usa la syscall, che è un bit in un registro che viene attivato.
+Come si toglie un processo in esecuzione come S? O aspetto che si metta in attesa - e quindi c'è una salvataggio di contesto - oppure scade il suo quanto di tempo a disposizione, quindi salva il contesto e poi riprende l'esecuzione.
+
+I processi hanno sempre due pile: quella U e quella S. Quando il processo è in modalità U, la sPila è vuota. 
+Quando si passa da U a S c'è una syscall e si salva il valore corrente del registro SP che punta alla pila U in USP e carica in SP il valore contenuto in SSP, che è sp0 (contenuto nel descrittore del processo), ovvero la base della pila S dato che è vuota. Salvataggio sulla sPila PC, PSR e carica in PC e PSR il valore presente nel vettore di syscall e quindi passa in modo S.
+
+_Commutazione di contesto_
+Il processo viene tolto dalla CPU, ma prima di ciò è necessario il salvataggio di contesto.
+USP viene salvato sulla sPila e il valore corrente del registro sp (punta alla cima della pila di sistema spila) viene salvato nel campo sp del descrittore del processo.
+A questo punto lo scheduler sceglie un processo che carica il suo sp.
+
+_Gestione degli interrupt_
+Interrupt è un evento asincrono che non ha nulla a che vedere col processo in esecuzione al momento. È gestito all'interno del processo in esecuzione anche se non è roba sua. 
+Vettore di interrupt indica l'indirizzo di partenza della risposta all'interrupt
+Come funziona l'interrupt?
+	1. interrompe il processo che funziona in modalità U oppure un servizio di sistema invocato dal processo correntemente in esecuzione oppure un interrupt con priorità minore
+	2. ...
+
+Gestione dello stato d'attesa: waitqueue
+Diversi tipi di attesa: I/O, sblocco del lock (MUTEX o semaphore), scadere di un timeout.
+Una waitqueue è una lista che contiene i descrittori dei processi in attesa di un certo evento.
+
+Attesa esclusiva e non esclusiva
+In alcuni casi conviene risvegliare tutti i processi presenti nella coda associata ad un evento (es. processi che attendono la terminazione di un'operazione su disco). 
+In altri casi conviene risvegliarne uno solo (es. molti processi in attesa della stessa risorsa bloccata). (non esclusiva)
+Esistono due funzioni:
+wait_event_interruptible() e wait_event_interruptible_exclusive()
+I processi in attesa esclusiva sono inseriti alla fine della waitqueue
+
+_I segnali (signal)_
+Sono un avviso asincrono inviato dal SO oppure da un altro processo.
+Es. SIGKINT (CTRL+C) (=/= sigkill), SIGSTP (CTRL+Z) (=/= sigstop).
+Sono numerati da 1 a 31 e da un nome simbolico abbastanza autoesplicativo
+Il segnale causa l'esecuzione di un'azione da parte del processo che lo riceve. 
+Può essere svolto solo se il programma è in modalità U di esecuzione.
+se il signal viene inviato ad un processo in modalità S si aspetta che rientri.
+Se il signal viene inviato ad un processo in stato di pronto si aspetta finché il processo non arriva in esecuzione
+Se il signal viene inviato ad un processo in stato di attesa in waitqueue ci sono 2 casi:
+	1. se l'attesa è interropibile il processo viene risvegliato da signal e poi entra in funzione il segnale
+	2. se l'attesa non è interrompibile
+
+Per risvegliare un processo c'è la funzione wake_up(wait_queue_head_t * wq) che risveglia tutti i task in attesa non esclusiva e un solo task in attesa esclusiva.
+Cosa fa? Mette lo stato a pronto e li elimina salla waitqueue e li mette nella runqueue.
+se un nuovo task aggiunto alla runqueue ha maggiori diritti di esecuzione rispetto a quello corrente il flag TIF_NEED_SCHEDULER viene impostato a 1 da wake_up.
+
+Esempio di una stampante che stampa un carattere per volta.
+Un processo che richiede un servizio di write (funzione di libreria glibc) di N caratteri. Il SO prende in carico la richiesta usando la syswrite e fa richiesta di scrittura alla periferica. I caratteri da inviare vengono spostati dll'area di memoria del processo a quella di sistema. Il servizio di sistema chiama la wait_event_interruptible e sospende il processo spostandolo nella coda.
+Quando la periferica ha finito, segnala che ha terminato inviando un interrupt e questo fa svegliare il processo in attesa di quell'evento spostandolo nella runqueue e quando torna in esecuzione si chiede se ha terminato di eseguira la stampa di N caratteri oppure se ha terminato.
+La wakeup è un interrupt (asincrono).
+
+Esempio di attesa esclusiva: implementazioen dei mutex.
+Linux utilizza un meccanismo detto futex (Fast Userspace Mutex) (non peterson) per realizzare i mutex in maniera efficiente.
+Due componenti del futex: una variabile intera nello spazio U e una waitqueue WQ nello spazio S
+Devo garantire che l'incremento e il test siano svolti in maniera atomica in spazio U 
+	se il lock può essere acquisito l'operazione ritorna senza bisogno del SO
+	se è bloccato si invoca un syscall chiamate sys_futex() con il parametro wait (la unlock invece passa il paraetro wake)
+
+La preemption
+dato che il nucleo è non-preemptive
+	-non viene eseguita immediatamente una commutazione di contesto quando il sistema scopre che un task in esecuzione dovrebbe essere sospeso e portato in stato di pronto ma viene impostato a 1 il flag TIF_NEED_RESCHED. Successivamente, al momento opportuno, questo flag causerà la commutazione di contesto. Una commutazione viene svolta durante l'esecuzione di una routine del SO solamente alla fine e solamente se il modo al quale la routine sta per ritornare è il modo U. Ovvero: il SO prima di eseguire una IRET o una SYSRET che lo riporta al modo U e se necessario esegue una preemption.
+
+Altri tipi di attesa
+	Variante di wakeup che è wakeup_process(task_struct * processo) per risvegliare solo un processo. (es. il padre aspetta che il figlio termini con la join di un thread. Quindi la exit() risveglia il padre del thread.)
+	Attesa di un timeout che definisce una scadenza temporale.
+	La variabile jiffies registra il numero di tick del clock avvenuti dall'avviamento del sistema (i jiffies dipendono dalla frequenza del clock).
+	Il servizio sys_nanosleep svolge le seguenti azioni: sposta il processo da esecuzione in attesa. Dopodiché chiama schedule_timeout con un parametro in jiffies. Questa funzione dice qual è il processo che sta aspettando, aggiunge il nuovo timer, definisce quale processo verrà eseguito, ... . Questo schedule_timeout viene messo nella coda dei timer. Quando il processo torna in esecuzione, il timer non serve più e viene eliminato con delete_timer(&timer).
+	Risveglio dal timer con wakeup: il controllo della scadenza dei timeout non può essere svolto ad ogni tick per ragioni di efficienza. La soluzione è complessa.
+La schedule è l'unica funzione che inizia con un processo e termina con un altro, ocsì come la reschedule.
+
+Funzioni dello scheduler utilizzate dalla gestione dello stato
+	schedule()
+		1)controllo se lo stato corrente è quello di attesa
+		2)context switch
+	check_preempt_curr()
+		(utilizzata quando faccio la wakeup)
+		1) controlla se il task deve essere preemted, in tal caso attiva flag diritto a 1
+	enqueue_task()
+	dequeue_task()
+	resched()
+		pone TIF_NEED_RESCHED a 1
+	task_tick()
+		scheduler periodico, invocata dall'interrupt del clock e aggiorna vari contatori e determina se il task deve essere preempted perché è scaduto il suo quanto di tempo.
+
+Pseudocodice della funzione void wait_event_interruptible(coda, condizione){
+	// costruisci un elemento della waitqueue che punta al descrittore del processo corrente. Aggiungi il nuovo elemento alla waitqueue poni i flag a indicare se è esclusivo o non esclusivo in base a xxx. Infine poni stato del processo (current->state) a ATTESA.
+	schedule();
+	//quando il processo riparte rimuovi il processo corrente dalla waitqueue.
+}
+
+Pseudocoice della wakeup
+void_wakeup(wait_queue_head_t * wq){
+	//per ogni descrittore puntato da un el. di wq
+	{
+		cambia lo stato a pronto
+		enqueue();
+		eliminalo dalla waitqueue
+		se il flag è esclusivo break
+		...
+	}
+	...
+}
+Pseudocodice di R_int_clock(...){
+//gestisce i contatori di tempo reale
+}
+
+void R-int_evento(){
+	//cose realtive all'evento
+	wake_up(head_event_queue);
+	if(modo di rientro è U ed è urgente)
+		schedule();
+}
+
+Codice assembly nei sorgenti linux:
+La funzione schedule() invoca la funzione context_switch() che a sua volta contiene la macro assembler #define switch_to(prev, next).
+L'operazione centrale consiste nella sostituzione della sPila del processo uscente con la sPila del processo nuovo che nel x64 consiste nelle seguenti 2 istruzioni:
+	movq %rsp, threadrsp(%prev)
+	movq threadrsp(%next), %rsp
+Ovvero passo da una pila all'altra e il processo viene riportato nella schedule
+È possibile inserire codice assembly nel codice C.
+
+Gestione della concorrenza nel nucleo
+Cause di concorrenza:
+	a. esistenza di molte CPU che eseguono in parallelo
+	b. la sospensione di un'attività a causa di una commutazione di contesto, con partenza di nuova attività
+
+PID 1 : init. È un processo idle che non muore e rimane sempre lì finchè non c'è più nessun processo da eseguire e tiene eseguito il processore.
+init è un processo normale, in modalità U che però non ha un processo padre.
+il processo 1 crea un processo per ogni terminale sul quale potrebbe essere eseguito un login (leggendo il file (initab).
+Questo processo esiste sempre, finché non spengo la macchina.
+Il processo idle ha priorità infima e non ha mai bisogno di sospendersi. La sua esecuzione può sospendersi quando si verifica un interrupt
+
+Tutte le funzioni della glibc chiamano la wrapper che chiama la syscall(servizio_richiesto). La syscall() chiama l'istruzione SYSCALL che fa passare dalla modalità U a quella S. La quale a sua volta chiama la system_call che legge il numero del servizio da %rax e invoca la sys_xxx.
+La funzione syscall() è dichiarata nel modo seguente:
+long syscall(long n_servizio, param_del_serv);
+
+Esempio di invocazione del servizio read()
+read(fd, buf, len) -> syscall(sys_read, fd, buf, len) -> syscall() //carica qualcosa nei registri ed esegue SYSCALL
+
+Programma utente | glibc     | glibc    |
+-----------------|-----------|----------|
+funct()          |read(...)	 |syscall()
+.                              rax = ...
+.                              ...
+.                            | SYSCALL  |->chiama la system_call(...) che chiama la sys_read(...), tutto questo cambiando modalità di esecuzione da U a S.
+x_read(...)      | syscall(sys_read)|   |
+
+Quindi:
+programma utente chiama la sua funzione che chiama la sua read che chiama la read della glibc che chiama la funzione syscall() che chiama la SYSCALL che chiama la system_call del SO che chiama la sys_read che interagisce con la wait_event_inter(..) che chiama la wait_event_interr() con dentro la schedule. Il cambiamento della pila è importante perché c'è nel tema d'esame.
+
