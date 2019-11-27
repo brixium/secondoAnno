@@ -1572,3 +1572,140 @@ x_read(...)      | syscall(sys_read)|   |
 Quindi:
 programma utente chiama la sua funzione che chiama la sua read che chiama la read della glibc che chiama la funzione syscall() che chiama la SYSCALL che chiama la system_call del SO che chiama la sys_read che interagisce con la wait_event_inter(..) che chiama la wait_event_interr() con dentro la schedule. Il cambiamento della pila è importante perché c'è nel tema d'esame.
 
+Mercoledì 27 novembre 2019
+
+Quando un processo ha bisogno del SO per I/O, thread invoca una syscall(). syscall()->SYSCALL->system_call
+wakeup sveglia tutti quelli bravi e uno di quelli egoisti, wakeup_process ne sveglia uno solo
+enqueue() ->sposta il processo nella runqueue
+mutex_lock o sem_wait ->syscall(sys_futex, wait, ...) se lock è bloccato
+mutex_unlock o sem_post->syscall(sys_futex, wakeup, ...)
+sys_nanosleep->schedule_timeout->add_timer(&timer); schedule(); delete_timer();
+controlla_timer->fa la wake up se è scaduto il tempo
+La IRET è quella che ti fa tornare in modalità U dalla S
+Per linux non c'è differenza tra thread leggeri e "pesanti" (processi)
+La funzione clone() permette più operazioni della fork() e della pthread_create().
+sys_clone implementa clone() e fork(). pthread_create() implementa clone().
+La funzione clone() ha 3 flag: CLONE_VR (condividono area di memoria), CLONE_FILE (tabella file aperti condivisa) e CLONE_THREAD per definire un thread.
+La sys_clone assomiglia alla funzione fork() per cui a differenza della clone() non ha il parametro fn e il figlio riprenderà l'esecuzione all'istruzione successiva come in fork().
+Attenzione al parametro child_stack: se è 0 il figlio lavora sulla pila che è una copia fisica della pila del padre posta allo stesso indirizzo virtuale, se è !0 il figlio lavorerà su una pila posta all'indirizzo di child_stack.
+Realizzazione di clone()
+È richiesto del codice assembler per la sua implementazione della pila
+clone(void (*fn)(void *), void *child_stack, int flags, void *arg, ...)
+Eliminazione dei processi
+	sys_exit(): cancella un singolo processo
+	sys_exit_group(): cancellazione di tutti i processi di un gruppo
+la sys_exit_group() manda un signal a tutti i processi del gruppo e poi chiama la sys_exit().
+La sys_exit() rilascia la memoria del processo, elimina il processo dalle code che aveva in sospeso, rilasciare tutti i files e invoca la wake up del padre per poi chiamare la schedule.
+
+Accesso allo spazio U del sistema operativo
+Linux ofre una serie di macro assmbler per questo Linux/arch/x86/include/asm/uaccess.h
+Esempio get_user(x, ptr) dove x è la var del so su cui salvare il ris. e ptr è il ptr alla var sorgente nello spazio di memoria U.
+Esiste analogamente put_user(x, ptr)
+sys_execve -> esegue la mutazione di codice
+
+_Lo scheduler_
+Decide quali task eseguire e per quanto tempo eseguirle.
+È il pezzo più importante del SO perché decide come impiegare la CPU.
+
+	Politica di scheduling equa (round robin)
+		tutti i task vengono schedulati a turno per lo stesso tempo di esecuzione
+		Questa implementazione ha dei problemi: non è detto che tutti utilizzino il proprio quanto di tempo; non si possono distinguere i processi per priorità.
+		
+Classi di scheduling (diverse, ordinate per priorità): 
+	task real time (o hard realtime);
+	task semi real time (o soft realtime) (es. streaming video);
+	task normali:
+	\-> t. I/O bound; (si autosospendono frequentemente perché devono agiornare l'i/o (es. interfaccia grafica))
+	\-> t. CPU bound. (tipo un compilatore, che non facendo i/o può utilizzare la cpu appieno)
+		Task normali si dividono in due: task i/o bound, che si autosospendono frequentemente perché devono agiornare l'i/o (es. interfaccia grafica); e task cpu bound, tipo un compilatore, che non facendo i/o può utilizzare la cpu appieno.
+
+	Nel descrittore del task "const struct schedule * sched_class" rappresenta la classe di scheduling che gestisce il task.
+	Lo scheduler è l'unico gestore dei task in stato di pronto, ossia l'unico gestore della runqueue
+
+I processi normali sono normati dal CFS: Completely Fair Scheduler.
+In questo momento in linux esistono 3 classi di scheduling:
+	SCHED_FIFO
+	SCHED_RR
+	SCHED_NORMAL
+Quindi per ogni task usa l'algoritmo che gli appartiene: FIFO per i realtime (alta priorità) , RR e normal ha priorità infima ma è quella che è regolata dal meccanismo più complesso.
+
+pick_next_task() decide quale task mandare in esecuzione. Se non ce n'è nessuno, mando idle (PID 1).
+Priorità statica va da 1 a 99 e non cambia finché non termina
+
+per i processi SCHED_FIFO l'esecuzione va avanti finché esso stesso non si mette in wait oppure termina, per SCHED_RR c'è un quanto di tempo uguale per tutti ciclica
+Cosa si fa per i processi di classe NORMAL?
+	1. determinare ragionevolmente la durata del quanto di tempo (fissa o variabile) (se troppo lungo sys poco responsivo, se troppo grande sys sovraccarico)
+	2. assegnare un peso a ciascun task
+	3. permettere ad un task rimasto a lungo in wait di tornare rapidamente in esecuzione ma senza favorirlo troppo
+
+CFS
+Chiamiamo il peso task LOAD e gli assegniamo il valore L0 (che è il peso iniziale)
+Definiamo il numero dei task nella runqueue NRT, che è sempre >=1 (idle è sempre pronto).
+Definiamo un periodo di scheduling PER durante il quale i processi non si autosospendono
+PER = max(LT, NRT*GR)
+LT = latenza di default = 6ms
+GR = granularità di default = 0,75ms
+Quindi finché NRT non è 8, all'inizio LT è il più grande
+Ad ogni task associo un quanto di tempo, che chiamo Q = PER/NRT.
+    PER
+Q = ---. 
+    NRT
+Meccanismo base di CFS - gestione della runqueue
+RB è runqueue. 
+1. Il task in testa a RB diventa corrente (CURR)
+2. CURR viene eseguito finché non scade il quanto Q
+3. CURR viene sospeso e messo in coda a RB
+4. goto 1
+I task sono eseguiti a turno per esattamente PER/NRT ms.
+Il periodo di schedulazione PER è una sorta di finestra scorrevole nel tempo.
+...
+Durata del quanto in funzione del peso del task
+Definiamo un parametro chiamato t.LOAD che è il peso dello specifico task; definiamo poi RQL la sommatoria di tutti i pesi dei task che abbiamo nella runqueue.
+t.LC è un coefficiente di load
+t.LC = t.LOAD/RQL
+t.LOAD = t.LC*RQL
+t.Q = PER*t.LC
+
+Se tutti i task hanno t.LOAD = L0, Q=PER*LC (LC = t.LOAD/RQL ma RQL = NRT*L0), quindi Q=(PER*L0)/(NRT*L0) = PER/NRT
+
+Lo scheduler CFS usa il Virtual RunTime (VRT) per ordinare i task nella runqueue
+Il VRT è una misura virtuale del tempo di esecuzione consumato da un processo, basata sulla modifica del tempo reale di coefficienti opportuni.
+La RB viene ordinata in base al valore del valore del VRT per ogni processo.
+Adesso ogni volta che un processo va messo nella RB lo si mette ordinato in base al VRT
+
+(Ri)calcolo del Virtual RunTime VRT di un task
+	variabili:
+		SUM   = tempo totale di esecuzione del task
+		DELTA = durata del quanto di tempo consumato dal task in esecuzione
+		t.VRTC = 1/t.LOAD è il coefficiente di correzione di VRT (vrt_coeff)
+
+	calcolo
+		SUM  = SUM + DELTA
+		VRT  = VRT + DELTA * VRTC
+		VRTC = L0/LOAD
+		VMIN = VRT minimo tra tutti i VRT dei task nella runqueue (RB). VMIN deve crescere monotonicamente. Per ora VMIN = min(CURR VRT, LFT.VRT) dove CURR.VRT è il processo correntemente in esecuzione e LFT.VRT è il primo processo in coda, ovvero quello con VRT minimo.
+		t.VRT = t.VRT+DELTA*t.VRTC
+
+funzione tick() con virtual runtime
+tick(){
+	DELTA = NOW - CURR->START;
+	CURR->SUM = CURR->SUM + DELTA;
+	CURR->VRT = CURR->VRT + DELTA * CURR->VRTC;
+	CURR->START = NOW;
+	VMIN = min(CURR->VRT, LFT->VRT);
+}
+//se c'è bisogno, rischedula
+In pratica il VRT viene ricalcolato ad ogni tick del real-time clock
+
+Esempio 1: task senza attesa
+Condizioni iniziali (da trovare:)
+	t.LC  = t.LOAD/RQL = 1/3   = 0,33ms
+	VRTC  = L0/LOAD    = 1/1   = 1ms
+	Q     = PER*LC     = 6*1/3 = 2ms
+Ora supponiamo di avere un periodo di 7 secondi per vedere cosa succedea
+Dopo 2 ms scade il quanto e aggiorno il processo in esecuzione
+SUM = 10 + 2 = 12
+VRT = 100 + 2 * 1 = 102
+
+Esempio 2 
+
