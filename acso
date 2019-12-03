@@ -1712,3 +1712,121 @@ Esempio 2
 Giovedì 28 novembre 2019
 esercitazione sul kernel linux
 
+Martedì 3 dicembre 2019
+Scheduler processi/thread normali
+Ripasso lezione di mercoledì
+Sommatoria pesi relativi è RQL = sommatoria dei t.LOAD
+La runqueue ordinata con virtual runtime 
+VRT = VRT + DELTA * VRTC
+VRTC = L0/LOAD
+VMIN = min(CURR.VRT, LFT.VRT) //curr.vrt è il processo in esecuzione e lft.vrt è il primo processo in coda
+pseudo codice di pick_next_task_fair()
+Calcolo VRT per un processo risvegliato:
+	tw.VRT = max(tw.VRT, VIM-LT/2) //LT di default è 6 ms
+	VIM = max(VMIN, min(CURR.VRT, LFT.VRT))
+
+Esempio 3: task con attesa e risveglio
+Condizioni inizali
+RUNQUEUE	NRT	PER		RQL		CURR	VMIN
+			3	6,00	3,00	t1		100,00
+TASKS:		ID	LOAD	LC		Q		VRTC	SUM		VRT
+	CURRENT	t1	1       0,33    2,00    1,00    10,00	100,00
+	RB TREE	t2	1       0,33    2,00    1,00    20,00   100,50
+			t3	1       0,33    2,00    1,00    30,00	101,00
+Evento 1: t1: WAIT at 1.0
+EVENT	TIME	TYPE	CONTEXT	RESCHEDULE
+        1,00    WAIT    t1      true
+RUNQUEUE	NRT	PER		RQL		CURR	VMIN
+			2	6,00	2,00	t1		100,50
+TASKS:		ID	LOAD	LC		Q		VRTC	SUM		VRT
+	CURRENT	t2	1       0,33    2,00    1,00    10,00	100,00 <-qui cabiano le cose
+	RB TREE	t3	1       0,33    2,00    1,00    20,00   100,50 <-qui idem
+___
+	WAITING	t1	1,0		0,33	2,00	1,00	11,00	101,00
+Evento 2: scade il quanto di tempo al tempo 4
+Evento 3: wakeup di t1 al tempo 5.0
+EVENT	TIME	TYPE	CONTEXT	RESCHEDULE
+        6,00    WAKEUP  t3      true
+RUNQUEUE	NRT	PER		RQL		CURR	VMIN
+			3	6,00	3,00	t1		103,00
+TASKS:		ID	LOAD	LC		Q		VRTC	SUM		VRT
+	CURRENT	t1	1       0,33    2,00    1,00    10,00	103,00<-|\
+	RB TREE	t3	1       0,33    2,00    1,00    20,00   103,50<-|--ovviamente qui i valori sono sballati
+			t2	1       0,33    2,00    1,00    30,00	103,50<-|/
+Evento 4: al tempo 8 cambia il contesto
+Evento 5: t3 WAIT at 3.0 (2+1)
+Evento 6: t3 rientra in coda di esecuzione con la wakeup
+Evento 7: cambio di contesto al tempo 12 ed entra t2
+
+Esempio 4: task con attesa (breve) e risveglio 
+assegnamento del peso ad un task: nice
+nice value di default è 0 ma può andare da -20 a +20
+Riassunto delle regole nella slide 66
+
+Fine slide kernel.
+-----
+M2 - Organizzazione della memoria virtuale
+Con l'architettura x64 lo spazio di dindirizzamento potenziale è 2^64 B con indirizzi virtuali a 64B
+Lo spazio di indirizzamento virtuale utilizzabile è 2^48 byte -> 256TB suddiviso in due sottospazi di modo U ed S ambedue da 2^47 Byte, cioè 128 TB.
+Lo user space va da 0 a 0x0000 7fff ffff ffff e il kernel da 0xffff 8000 0000 0000 fino a 0xffff ffff ffff ffff. La parte restante è detta area non canonica (non-canonical area).
+Considero un eseguibile: il codice del programma inizia a 0x0000 0000 0040 0000 e i dati iniziano da 0x60 0000. Le pile per i thread vengono create in un'area che inizia all'indirizzo 7f7 ffff ffff e cresce verso gli indirizzi bassi (area T)
+area M: condivisone tra processi di files e librerie dinamiche condivise
+area D: dati allocati dinamicamente
+la pila del programma sarà P, i dati statici (S), costanti per la rocazione dinamica (K), il codice del programma sarà (C)
+Alcune aree sono uniche, es. C,K,S ma non M, T.
+Definizione di area virtuale (vm_area_struct) dentro a Linux/include/linux/mm_types.h
+Backing store segment (BSS): un'area virtuale di memoria può essere mappata su file. Se non lo è diventa ANONYMOUS
+task_struct file: /bin/gonzo -> mm_struct -> mmap -> vm_area_struct
+
+Due tipi di memoria virtuale:
+Mapping basato su file -> possiedono un Backing store (BSS)
+	pagine di codice
+	librerie
+	file di dati
+	dispositivi di I/O
+Mapping anonimo
+	pila
+	heap
+	pagine copy on write
+Questi due tipi di memoria utilizzano meccanismi diversi per l'allocazione delle pagine e lo swapping
+Esempio cat /proc/NN/maps (dove NN è il pid del processo)
+output: file diviso in colonne. Esempio:
+start-end memory addresss, permissions, offset, device, i-node, file name
+7fff7bca7000-7fff7bcc8000 rw-p 00000000 00:00 0                          [stack]
+permessi linux: rwxp. p = private (copy on write)
+Algoritmo di base di gestione dei page fault.
+QUando la MMU genera un interrupt di page fault per una pagina virtuale NPV viene attivata la routine di risposta Page Fault Handler:
+se NPV non appartiene alla memoria virtuale del processo
+	page fault
+se ...
+	page fault
+altrimenti
+	...
+Flag di Grows down è assegnato alla pila, che cresce dall'alto verso il basso
+Linux crea sempre 34 pagine di pila e l'ultima è sempre vuota
+La memoria dati deinamica (heap) del programma viene incrementata così:
+il C ha la funzione malloc che utilizza una funzione del SO che si chiama brk() e sbrk().
+void * sbrk(intptr_t incremento)
+Cosa che sbagliamo in ogni tema d'esame in slide 27
+creazione di un nuovo processo con la fork->il figlio è un'immagine del padre ma non alloco della memoria fisica
+Il processo padre si alloca una nuova pagina, il figlio si becca quella vecchia del padre
+quando uno dei due processi cerca di scrivere in memoria -> duplicazione della pagina (copy on write)
+Chi chiede la scrittura si becca la nuova pagina 
+Gestore delle violazioni di pagina (Page Fault Handler) e duplicazione della pagina
+La MMU ha una cache con le pagine recenti che si chiama TLB = Translation Lookaside Buffer
+TLB è una cache con le ultime pagine a cui ho fatto accesso
+TLB tiene traccia del dirty bit che indica se la pagina è stata scritta o meno
+Faccio la exit con conseguente deallocazione, context switch e svuota il tlb.
+
+I thread condividono aree virtuali e tabella delle pagine del processo padre
+Linux alla creazione di ogni thread alloca un'area di tipo T di 2048 pagine, 8 MiB, per ogni pila di thread
+Linux inserisce una pagina in sola letturacome area di interposizione tra ogni pila come protezione
+La pila del primo thread inizia logicamente al NPV 7FFF F77F F e si sviluppa verso indirizzi più bassi.
+VMA possono essere classificate in base a due criteri:
+	mappate su file o anonoime
+	shared o private
+Consideriamo 3 tipi di aree: SHARED e mappate su file, PRIVATE e mappate su file, ANONYMOUS e PRIVATE.
+Creazione di una VMA da programma utente:
+#include <sys/mman.h>
+void *mmap (void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+
