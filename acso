@@ -1829,4 +1829,59 @@ Consideriamo 3 tipi di aree: SHARED e mappate su file, PRIVATE e mappate su file
 Creazione di una VMA da programma utente:
 #include <sys/mman.h>
 void *mmap (void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+--------
+Mercoledì 4 dicembre 2019
+Memoria virtuale (continua)
+Aree virtuali di memoria (VMA)
+	(C) area di codice *
+	(K) costanti di allocazione dimanica *
+	(S) dati statici *
+	(D) dati dinamici +
+	(T) pile dei thread +
+	(N) file mappati in memoria (memory-mapped files) *
+	(P) pila o stack +
+* = mappata su file
++ = anonima
 
+Aree mappate su file.
+Paged cache si usa per non ricorrere sempre al disco.
+Paged cache contiene una tabella contente tutte le pagine fisiche utilizzate.
+La page cache è strutturata così: identificatore del file e offset su cui è mappata, ref_count e dirty bit
+Ref_count è il contatore che conta il numero di processi che stanno utilizzando una pagina in cache
+^Questo in lettura, ma in scrittura?
+	-La pagina fisica viene modificata -> dirty_bit = 1
+	-Tutti i processsi che mappano tale pagina vedono immediatamente tutte le notifiche
+	-La pagina modificata verrà scritta su disco una volta sola al termine dell’utilizzo.
+Scrittura di un VMA shared mappata su file:
+	base = mmap (mapaddress1, PAGESIZE*3, PROT_READ | PROT_WRITE, MAP_SHARED, fd, PAGESIZE);
+Scrittura di un VMA PRIVATE mappata su file
+Meccanismo di Copy-on-Write:
+• Le pagine delle VMA di tipo scrivibile vengono abilitate solo in lettura
+• Quando un processo P scrive su una di queste pagine (NPV) si verifica un page fault per violazione di protezione
+• Il Page Fault Handler alloca una nuova pagina fisica (NPF), copia in questa nuova pagina di tipo ANONYMOUS il contenuto della pagina che ha generato il Page Fault
+• Pone nella Tabella delle Pagine la corrispondenza NPV – NPF e modifica il diritto di accesso W
+Nell'esempio due della slide pz non viene inserito nel page cache index in quanto anonimo e privato
+
+Liberare la	page cache
+Il file viene eliminato solo se si tratta di un file privato (tipo pz dell'esempio di prima) oppure se la memoria è piena.
+Pagine in Page Cache non vengono liberate neppure quando tutti i processi che le utilizzavano non le utilizzano più
+• Linux applica il principio di mantenere in memoria le pagine lette da disco il più a lungo possibile, per evitare successivi accessi a disco se richiesti nuovamente
+• Le pagine in Page Cache vengono liberate in base alla politica di gestione della memoria quando si arriva a una situazione di memoria quasi piena
+• In questo caso vengono salvate sul file del disco (backing store)
+
+Cosa succede alle aree anonime (quindi non mappate su file)?
+Le aree di tipo anonymous non hanno un file associato, quindi non alloca memoria fisica. Le pagine virtuali sono tutte mappate sulla ZeroPage (pagina con tutti 0 del SO). 
+Se effettuo lettura trovo tutti 0, se provo la scrittura di attiva la copy-on-write
+Le pagine anonime se devono essere scaricate dalla memoria vengono salvate in un file chiamato SWAP FILE
+
+Esempio di simulazione della memoria
+Indirizzo iniziale del codice: 0x401324
+0x40 0000 è dove inizia l'area del codice
+0x40 1000 è dove c'è il main, il codice è in questa pagina con offset 0x324
+
+Esercizi sulla memoria che non sto seguendo
+Fine slides M2
+Gestione della memoria fisica del SO
+	Fin'ora abbiamo visto un allocazione di pagine a grana fine (es. malloc nella heap)
+	Possiamo però pensare ad una allocazione a grana grossa: grandi porzioni di memoria (brk nella stack)
+Esiste una disk cache, che in realtà sta sulla memoria primaria
