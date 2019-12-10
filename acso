@@ -1885,3 +1885,68 @@ Gestione della memoria fisica del SO
 	Fin'ora abbiamo visto un allocazione di pagine a grana fine (es. malloc nella heap)
 	Possiamo però pensare ad una allocazione a grana grossa: grandi porzioni di memoria (brk nella stack)
 Esiste una disk cache, che in realtà sta sulla memoria primaria
+-----
+Martedì 10 dicembre 2019
+Gestione della memoria fisica
+Bisogna tenere una paged cache in una frazione della memoria.
+Page recaliming avviene quando la memoria disponibile è poca.
+	Se la pagina è stata letta e mai modificata la si libera, altrimenti deve essere scritta su disco prima di essere resa disponibile
+Operazioni di deallocazione:
+	1. Scaricamento di molte pagine dache non utilizzate dai processi, se non basta, vedi 2.
+	2. Alcune pagine dei processi vengono scaricate. Se non basta usa 3.
+	3. Out Of Memory Killer (OOMK)
+"free -m" su linux consente di vedere l'occupazione della memoria (-m sta per megabyte)
+total è tutta la memoria fisica a disposizione, used è quella utilizzata, free è quella ancora utilizzabile, buffers e cache è la quantità di memoria utilizzata per i buffer/cache ed è considerata disponibile.
+/proc/meminfo riporta info sulla memoria. La cache è il maggior consumatore di memoria (cache e buffer sono simili, ma i buffer sono fatti a blocchi, principalmente per i/o)
+Allocazione della memoria fisica
+	a grana piccola: singole pagine
+	a grana grossa: usa pagine contigue, preferito da linux
+Buddy system.
+	La memoria viene divisa in grandi blocchi
+Deallocazione della memoria fisica
+	La quantità di memoria libera quando scende sotto un livello critico viene usato il PFRA.
+	Problemi:
+		Quando e quante pagine è necessario liberare
+			parametri: 
+				freePages
+				requiredPages
+				minFree: n pag min libere sotto il quale non si vorrebbe scendere
+				maxFree: n.pagine libere al quale PFRA ...
+			Invocazione del PFRA:
+			.diretta: da parte di un processo che richiede requiredPages di mem se (freePages - requiredPages) < minFree
+			.periodica: attivata dal kernel swap daemon (kswapd), invoca il PFRA se freePages<maxFree
+			PFRA deterina n pagine da liberare (toFree) con l'obiettivo di riportare sempre il sistema ad avere maxFree pagine libere
+			toFree = maxFree - freePages + requiredPages
+		Quali pagine liberare
+			ci sono diversi tipi di pagine:
+				pagine non scaricabili: SO, sPila, ...
+				pagine mappate sul file eseguibile dei processi che possono essere scaricate senza mai riscriverle (codice, costanti)
+				pagine che richiedono l'esistenza di una swap area su disco per essere scaricate (anonime): pagine dati, pagine della pila (modo U), pagien dello heap
+				pagine mappate su file: pagine appartenenti al buffer/cache
+			LRU list sono 2 liste globali che collegano tutte le pagine appartenenti ai processi.
+				Active list: pagine che sono state accedute di recente e non possono essere scaricate
+				Inactive list: pagine inattive da molto tempo e candidate per essere scaricate
+			Entrambe le LRU sono tenute in ordine di invecchiamento (giovani davanti, vecchi dietro).
+			x64 non tiene traccia del numero di accessi alla memoria, per cui linux realizza un'approssimazione basata sul bit di accesso A presente nella PTE della pagina, che viene posto a 1 dall'x64 ogni volta che la pagina viene acceduta e posto a 0 periodicamente dal SO.
+	Il meccanismo di swapping. Operazioni swapout e swapin per liberare e ricaricare pagine in memoria
+	Spostamento delle pagine tra le due liste LRU (active e inactive):
+		ad ogni pagina viene associato il flag ref (referenced) oltre al bit di accesso A settato dall'hw
+	Funzione controlla_liste segue una scansione delle due che eventualmente sposta alcune pagine dalla active list alla inactive list
+	Da attivi a inattivi in coda, viceversa il contrario
+	
+	Algoritmo di controlla_liste
+		se a==1
+			azzera a
+			se ref==1, sposta P in testa alla active
+			se ref==0 pone ref=1
+		se a==0
+			se ref==1, pone ref=0
+			se ref==0, sposta P in testa alla inactive con ref=1
+nelle 2 liste le lettere maiuscole indicano ref=1, quelle minuscole ref=0
+Esercizi di cui non si capisce nulla per due ore
+Meccanismo di swap e regole
+fenomeno di thrashing 
+– il sistema continua a deallocare pagine che vengono nuovamente richieste dai processi,
+– le pagine vengono continuamente scritte e rilette dal disco e nessun processo riesce a progredire fino a terminare e liberare risorse
+
+Ultima parte che ci rimane sulla memoria è come viene gestita la tabella delle pagine che faremo domani, inizieremo un esericzio che mette insieme delle casistiche che ci saranno sul tema d'esame.
