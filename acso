@@ -1950,3 +1950,42 @@ fenomeno di thrashing
 – le pagine vengono continuamente scritte e rilette dal disco e nessun processo riesce a progredire fino a terminare e liberare risorse
 
 Ultima parte che ci rimane sulla memoria è come viene gestita la tabella delle pagine che faremo domani, inizieremo un esericzio che mette insieme delle casistiche che ci saranno sul tema d'esame.
+-----
+Mercoledì 11 dicembre 2019
+Slide M4
+TLB
+Linux si adatta all'architettura per dimensione pagine, lunghezza offset
+All'avvio del SO x64 la paginazione non è attiva e quindi le funzioni di caricamento iniziale funzionano accedendo direttamente alla memoria fisica. Quando almeno una parte del SO è pronta, viene attivato il meccanismo di paginazione.
+Tabella pagine del kernel
+	Righe 0-255: 
+	Righe 256-511 per il SO
+PMD = page middle directory
+PUD = page upper directory
+Entrambe possono accedere a 2MiB a testa di memoria
+Una riga intera riesce a tenere 512 GB
+Esempio 1:
+Codice dati riga 0, pila mappata nella riga 255.
+Quindi il programma occupa 3 pagine totali, la tabella delle pagine ne occupa 7.
+È un po' sbilanciato
+Esempio 2:
+il programma occupa fino a 1024 pagine e 7 sono per la tabella delle pagine (rapporto 7/1024 = 0,0068 = 0,68%
+Ci sono casi in cui il SO deve utilizzare indirizzi fisici
+Il rapporto tra la dimensione della porzione di tabella delle pagine interessata e la dimensione della memoria fisica tende a 1/512 (es. per 4GB di memoria 1MB di pagine e TP da (MB). Avremo 2^k pagine.
+Decomposizione di un indirizzo virtuale
+63     47    38    29    20    11     0
+|------|-----|-----|-----|-----|------|
+|      |9 bit|9 bit|9 bit|9 bit|      |
+|------|-----|-----|-----|-----|------|
+4 cifre  PGD   PUD   PMD   PT   offset
+HEX
+Struttura tabella delle pagine per un processo:
+Indirizzo iniziale del codice (..0000 0040 0000 ) -> 0:0:2:0
+- indirizzo iniziale dei dati (..0000 0060 0000 ) -> 0:0:3:0
+- Indirizzo inizlale della pila del processo (7fff ffff ffff) -> 255:255:255:255
+Calcolo indirizzo virtuale a partire da quello fisico
+Fine slide M4
+Nuovo pdf
+Esercizio completo di gestione della memoria
+0: 1: <- bit accesso
+^ dirty bit
+
