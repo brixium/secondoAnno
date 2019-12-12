@@ -1988,4 +1988,194 @@ Nuovo pdf
 Esercizio completo di gestione della memoria
 0: 1: <- bit accesso
 ^ dirty bit
+Giovedì 12 dicembre 2019
+Il file System (con Luca Stornaiuolo)
+file_system.pdf
+in pratica FS si usa per indicare la struttura delle directory a partire da quella principale, formato per archiviazione dei dati, partizioni.
+Definizione: componente del SO che mette a disposizione e implementa tutti i servizi (API) che servono per la gestione dei file. 
+Il file è un'unità di archiviazione in memoria di massa (=memoria secondaria, disco).
+FS gestisce periferiche varie.
+Virtual File System: interfaccia unica per gestire i diversi FS. Astrazione fornite:
+	- file, link, operazioni su file
+	- directories (direttòri) e file speciali (es. periferica)
+	- attributi e politiche di accesso
+	- mapping del FS logico sui dispositivi fisici
+I dispositivi sono divisi in partizioni, considerate indipendenti l'un l'altra
+L'accesso ai dati sul disco ha dei tempi misurati in millisecondi (ms).
+FS collabora con la page cache e, più in generale, con la gestione della memoria.
+Quando il VFS o un FS ha bisogno di leggere un blocco su un volume, esso viene chiesto alla page cache. Se il blocco è già lì, la page cache restituisce l'indirizzo di memoria del blocco; in caso ocntratio la PaCa alloca lo spazio necessario in una pagina e carica lì il blocco dal disco
+File
+	è una sequenza di byte. È costituito da un nome simbolico e univoco all'interno della directory. Ha un insieme di attributi (tipo, locazione, dimensione, protezione, timestamp, proprietario)
+	Un file in linux può: contenere dati o programmi; contenere riferimenti ad altri file (directory); rappresentare l'astrazione di una periferica (f. speciale).
+	Operazioni su f.: creazione, apertura, chiusura, cancellazione; lettura, scrittura; riposizionamento
+_Il modello utente_
+.Accesso al singolo file
+	funzioni usate per scrivere e leggere info sui singoli file
+.Organizzazione della struttura complessiva dei file
+
+Accesso al file singolo
+2 modalità di accesso al file:
+	1.tramite mappatura VMA con nmap()
+	2.con le system call "classiche", molto simili alla gclib
+aprire o creare un file restituisce un intero non negativo è un descrittore del file. Lettura e scrittura utilizzano come riferimento il descrittore del file.
+Invece di tenere tutto il file si prendono dei pezzi e la posizione corrente.
+Per tenere traccia dei file aperti ci sono delle tabelle, di cui si occupa il SO.
+	tabella dei file aperti per ogni processo
+		l'indice del vettore rappresenta il descrittore del file
+	tabella globale dei file aperti nel sistema
+		contiene: indicatore di posizione corrente, numero di processi in accesso(link), riferimento (i-node) del file su disco.
+
+Ciascun processo ha una tabella dei file aperti
+Se stiamo usando C, esistono dei puntatori con il tipo File per indicare i file ed esistono delle funzioni per le operazioni su file.
+Scendiamo di livello
+Creat: viene aggiunto un nuovo file al filesystem
+int creat(char *nomefile, int permessi)
+Le operazioni richieste sono: allocazione dello spazio su disco e aggiunta di riferimenti al file nel FS. Restituisce un intero che rappresenta il descrittore del file
+Open: sulla base del nome individua la posizione del file sul disco
+int open (char *nomefile, int tipo, int permessi)
+- permessi: gestisce i permessi di accesso
+- tipo: lettura, scrittura, lettura e scrittura:
+	O_RDONLY: il file è aperto in sola lettura
+	O_WRONLY: il file è aperto in sola scrittura
+	O_RDWR: il file è aperto in lettura e scrittura
+In entrambi i casi
+– Aggiorna la tabella globale dei file aperti
+– Aggiorna la tabella dei file aperti dal processo
+Lettura e scrittura: read e write
+int read(int fd, char buffer[ ], int numero_byte)
+int write(int fd, char buffer[ ], int numero_byte)
+• accedono al file tramite descrittore (ottenuto tramite creat o open)
+• restituiscono il numero di caratteri effettivamente letti/scritti
+• aggiornano l’indicatore di posizione corrente
+• variabile per dati che devono essere scritti su file, vengono letti da file (???) 
+Il file system mantiene un indicatore alla posizione in cui deve
+essere effettuata la scrittura successiva
+
+Riposizionamento - Lseek()
+long lseek(int fd, long offset, int riferimento)
+modifica la posizione corrente e la restituisce come long
+Esempi:
+lseek(fd, 0L, 1): restituisce la posizione attuale senza modificarla
+lseek(fd, 0L, 0): posiziona all’inizio del file
+lseek(fd, 0L, 2): posiziona alla fine del file
+
+Duplicazione - dup()
+Crea un nuovo descrittore associato ad un file già aperto con open
+
+close() e fsync()
+Close chiude ma non garantisce che i dati che sono stati scritti in memoria vengano trasferiti sul disco, fsync sì
+Link ( ) e Unlink ()
+link associa un nuovo nome ad un file già esistente
+unlink elimina il collegamento ad un file specificato tramite nome. Se esiste un solo link, il file viene eliminato dal fs.
+
+Organizzazione complessiva dei file
+- i file sono organizzato in una struttura ad albero i cui nodi sono detti cataloghi (directory, cartelle, folder)
+- i nomi dei file sono inseriti nei cataloghi
+- un catalogo è un file dedicato a contenere i nomi di altri file e le informazioni necessarie al sistema per accedere a tali file
+- root (/) = radice
+- nome completo del file, o percorso = pathname
+
+Struttura gerarchica del FS
+Directory
+- sono dei file speciali di tipo d e sono caratterizzati da nome e diritti d'accesso
+
+Operazioni sui direttori
+- per crearne uno si usa la funzione mkdir()
+ricerca di un file
+creazione "" ""
+rimozione
+elenco
+rinomina
+
+Periferiche e file speciali
+Le periferiche sono file speciali e su di esse si possono fare open, read, write ma non creat
+Ogni programma all'esecuzione possiede già 3 descrittori di file: stdin(0), stdout(1) e stderr(2).
+
+Strutture dati VFS
+struct dentry (directory entry) = directory nel VFS
+struct inode (index node) rappresenta un solo file presente nel volume e contiene i metadati del file
+struct file rappresenta un file aperto nel sistema
+
+struttura dei cataloghi nel modello del VFS:
+struct dentry {
+		struct inode *d_inode;
+		struct dentry *d_parent; //puntatore al padre
+		struct qstr d_name; // nome del file
+		struct list_head d_subdirs; //puntatore al primo dir figlio
+		struct list_head d_child; //puntatore al fratello nell’albero
+		...
+}
+
+Struttura di accesso dai processi ai file aperti:
+struct task_struct {
+		...
+		/* filesystem information */
+		struct fs_struct *fs;
+		/* open file information */
+		struct files_struct *files;
+		...
+}
+
+struct files_struct {
+	...
+	int next_fd; //prossimo fd utilizzabile
+	struct file * fd_array[NR_OPEN_DEFAULT]; //tabella file aperti
+	...
+};
+
+struct file {
+	...
+	struct list_head f_list; //puntatore per la lista dei file aperti
+	struct dentry *f_dentry; //riferimento al dentry usato in apertura
+	loff_t f_pos; //posizione corrente
+	int
+	f_count //contatore dei riferimenti al file aperto
+	...
+}
+
+Ecco la catena:
+<descrittore di P> -> files.fd_array[fd] -> f_dentry -> d_inode
+.
+
+Numero di aperture contemporanee e contatore f_count
+
+La struct inode
+struct inode{
+		loff_t i_size; //dimensione del file
+		struct list_head i_dentry; //inizio della lista dei dentry del file
+		struct super_block *i_sb; //superblocco del FS che lo gestisce
+		struct inode_operations *i_op; //vedi sotto
+		struct file_operations *i_fop;
+		struct address_space *i_mapping; //struttura di mapping dei blocchi
+		...
+}
+
+Per fare gli esercizi supponiamo che la dimensione del blocco logico sia di 1024 byte e che la page cache sia organizzata in pagina da 4096 byte ciascuna.
+
+• La lettura di un file è basata sulla pagina: il SO trasferisce sempre pagine intere di dati con ogni operazione
+• Se un processo esegue una system call sys_read anche di pochi byte il sistema esegue le seguenti operazioni:
+	1. determina la pagina del file alla quale i byte appartengono
+	2. verifica se la pagina è già contenuta nella Page Cache, in tal caso passa al punto 5
+	3. alloca una nuova pagina in Page Cache
+	4. riempie la pagina con la corrispondente porzione del file, caricando i blocchi necessari (4 se blocchi da 1K) dal volume
+	5. copia i dati richiesti nello spazio di utente all’indirizzo richiesto dalla system call
+
+Convenzioni per esercizi
+Eventi:
+fd = Open (F) - fd è il descrittore, F è il nome
+Read (fd, num) - num è il numero di caratteri da leggere
+Write (fd, num) - num è il numero di caratteri da scrivere
+Lseek (fd, incr) - incr è l’incremento da attribuire alla posizione corrente
+Close (fd)
+– tutte queste operazioni hanno il comportamento normale, tranne close
+– per close supporremo che i dati vengano scritti su disco se
+l’operazione di close riduce f_count a 0
+Principali risultati da produrre:
+– stato della memoria
+– campi principali delle strutture dati (f_pos e f_count)
+– numero complessivo di accessi alle pagine del disco in lettura e
+scrittura
+
+In classe siamo arrivati fino a pagina 59 (slide n.64)
+Poi siamo passati al pdf Esercizi_file_system e abbiamo fatto in classe quello introduttivo
 
